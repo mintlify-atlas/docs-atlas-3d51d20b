@@ -1,0 +1,298 @@
+---
+title: 'CardPreview'
+description: 'Visual card display with flip animation and song navigation'
+---
+
+## Purpose
+
+`CardPreview` displays the current playlist as an interactive card with:
+
+- Front side showing playlist artwork and song count
+- Back side with scrollable song list
+- Flip animation to toggle between sides
+- Click-to-play song selection
+
+## Props
+
+This component takes no props. It reads from the `LoadedCard` context:
+
+```tsx
+const { appContext, setAppContext } = useContext(LoadedCard);
+```
+
+## Component Structure
+
+The card uses a grid layout with three sections:
+
+```tsx
+<div className="grid grid-cols-1 grid-rows-[10em_1px_1fr] w-[12em]">
+  {/* Front of card */}
+  <div className="h-[10em] rounded-[2em_2em_1em_1em]">...</div>
+  
+  {/* Dashed separator */}
+  <div className="h-[1px] border-dashed">...</div>
+  
+  {/* Back of card (rotatable) */}
+  <div style={{ transform: `rotateX(${rotation}deg)` }}>...</div>
+</div>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardPreview.tsx:12`
+
+## Flip Animation
+
+The card uses 3D CSS transforms for a realistic flip effect:
+
+```tsx
+const [rotation, setRotation] = useState(0);
+
+<div
+  onClick={() => {
+    if (rotation != 180) {
+      setRotation(180);
+    } else {
+      setRotation(0);
+    }
+  }}
+  style={{
+    transform: `rotateX(${rotation}deg)`,
+    transformOrigin: "top",
+    transition: "transform 0.65s cubic-bezier(0.77, 0, 0.175, 1)",
+  }}
+>
+  {/* Song list content */}
+</div>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardPreview.tsx:7`
+
+The animation uses a custom easing function `cubic-bezier(0.77, 0, 0.175, 1)` for smooth, natural motion.
+
+## Background Rendering
+
+CardPreview supports two background types:
+
+### Color Background
+
+```tsx
+<div
+  style={{
+    background: appContext.loadedCard.properties.bgType === "color"
+      ? appContext.loadedCard.properties.color
+      : "black",
+  }}
+  className="h-[80%] rounded-[1em_1em_0.25em_0.25em]"
+>
+```
+
+### Blur Background
+
+Displays a blurred YouTube thumbnail:
+
+```tsx
+{appContext.loadedCard.properties.bgType === "blur" && (
+  <img
+    src={`https://img.youtube.com/vi/${
+      appContext.loadedCard.songs[
+        appContext.loadedCard.properties.blur - 1
+      ].id
+    }/0.jpg`}
+    alt="Song Thumbnail"
+    className="w-full h-full object-cover blur-[1em] brightness-50 absolute top-0 left-0 z-0"
+  />
+)}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardPreview.tsx:38`
+
+The `blur` property is a 1-indexed song number. The thumbnail is fetched from YouTube's image CDN.
+
+## Hero Display Modes
+
+Two modes for displaying card artwork:
+
+### Character Mode
+
+Displays a custom emoji or text:
+
+```tsx
+{appContext.loadedCard.properties.cdHero === "char" ? (
+  <p
+    className="flex w-full h-full justify-center items-center text-[2.3em]"
+    style={{ fontFamily: "Pixelify Sans" }}
+  >
+    {appContext.loadedCard.properties.char}
+  </p>
+) : (
+  // Title mode
+)}
+```
+
+### Title Mode
+
+Displays the playlist title:
+
+```tsx
+<p
+  className="flex w-full h-fit justify-start items-end text-[1.2em] absolute bottom-0 left-0 p-2 text-white whitespace-nowrap overflow-hidden overflow-ellipsis"
+  style={{ fontFamily: "Pixelify Sans" }}
+>
+  {appContext.loadedCard.properties.title}
+</p>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardPreview.tsx:50`
+
+## Song List
+
+The back of the card displays all songs in a scrollable list:
+
+```tsx
+<div className="w-full h-full px-2 py-1 bg-[#101010] rounded-[0.5em_0.5em_1.5em_1.5em] overflow-scroll">
+  {appContext.loadedCard.songs.map(
+    (song: { title: string; id: string }, index: number) => {
+      return (
+        <div
+          key={index + "prev"}
+          onClick={() => {
+            setAppContext((prev: typeof appContext) => ({
+              ...prev,
+              currentTrack: index,
+            }));
+          }}
+          style={{
+            fontFamily: "Instrument Serif",
+            fontSize: "1.2em",
+            color: appContext.currentTrack === index ? "#FFF" : "#888",
+            borderColor: appContext.currentTrack == index ? "#FFF" : "#1E1E1E",
+          }}
+          className="border-b-[1px] whitespace-nowrap overflow-hidden overflow-ellipsis"
+        >
+          {String(index + 1) + " ~ " + song.title}
+        </div>
+      );
+    }
+  )}
+</div>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardPreview.tsx:86`
+
+### Interactive Song Selection
+
+Clicking a song updates the current track:
+
+```tsx
+onClick={() => {
+  setAppContext((prev: typeof appContext) => ({
+    ...prev,
+    currentTrack: index,
+  }));
+}}
+```
+
+This triggers the Player component to load and play the selected song.
+
+### Active Track Highlighting
+
+The currently playing song is visually distinguished:
+
+```tsx
+style={{
+  color: appContext.currentTrack === index ? "#FFF" : "#888",
+  borderColor: appContext.currentTrack == index ? "#FFF" : "#1E1E1E",
+}}
+```
+
+## Tooltips
+
+Long song titles are truncated with tooltips:
+
+```tsx
+import { Tooltip } from "react-tooltip";
+
+<Tooltip id="card-preview-tooltip" />
+
+<div
+  data-tooltip-id="card-preview-tooltip"
+  data-tooltip-content={song.title}
+  data-tooltip-place="left"
+>
+  {String(index + 1) + " ~ " + song.title}
+</div>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardPreview.tsx:11`
+
+## Visual States
+
+### Card Position
+
+The card moves vertically during flip:
+
+```tsx
+style={{
+  bottom: rotation == 0 ? "2em" : "-8em",
+  transition: "all 0.65s cubic-bezier(0.77, 0, 0.175, 1)",
+}}
+```
+
+This creates a smooth descent as the card flips open.
+
+### Song Count Badge
+
+```tsx
+<p
+  className="flex w-full justify-center items-center m-[0.5em_0] text-[#828282]"
+  style={{ fontFamily: "Instrument Serif" }}
+>
+  {appContext.loadedCard.songs.length} Songs
+</p>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardPreview.tsx:70`
+
+## Example Card Data
+
+```json
+{
+  "properties": {
+    "title": "Summer Vibes",
+    "color": "#3E3F76",
+    "blur": "1",
+    "bgType": "blur",
+    "cdHero": "char",
+    "char": "🌊"
+  },
+  "songs": [
+    {
+      "title": "Line Without a Hook",
+      "id": "XSqx8Ibkzrk"
+    },
+    {
+      "title": "Cruise",
+      "id": "fmgmJLE-MqI"
+    }
+  ]
+}
+```
+
+<Info>
+  The card preview is positioned absolutely at the bottom-right of its container with `position: absolute; right: 2rem;`
+</Info>
+
+## Integration
+
+```tsx
+import { CardPreview } from '@/components/CardPreview/CardPreview';
+import ContextProvider from '@/services/ContextService';
+
+function App() {
+  return (
+    <ContextProvider>
+      <CardPreview />
+      {/* Other components */}
+    </ContextProvider>
+  );
+}
+```

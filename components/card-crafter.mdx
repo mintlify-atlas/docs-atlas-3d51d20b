@@ -1,0 +1,343 @@
+---
+title: 'CardCrafter'
+description: 'Create and edit playlist cards with drag-and-drop functionality'
+---
+
+## Purpose
+
+`CardCrafter` is the primary playlist creation and editing interface. It provides a modal dialog where users can:
+
+- Set playlist title and visual properties
+- Add songs via YouTube URLs
+- Reorder songs with drag-and-drop
+- Import songs from saved slips
+- Download playlist as a `.card` file
+
+## Props
+
+<ParamField path="setShowCrafter" type="Function" required>
+  Callback to close the crafter modal
+</ParamField>
+
+<ParamField path="initVal" type="cardContextType | null" required>
+  Initial card data for editing, or `null` for new cards
+</ParamField>
+
+## Interface: CrafterContextType
+
+Internal state structure for the crafter:
+
+```typescript
+interface CrafterContextType {
+  link: string;              // Current YouTube URL input
+  title: string;             // Current song title input
+  inputCard: cardContextType; // Card being edited
+}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:20`
+
+## Key Functions
+
+### YouTube URL Validation
+
+#### `valid(url: string | null): boolean`
+
+Validates YouTube URLs against supported formats:
+
+```typescript
+function valid(url: string | null) {
+  if (!url || typeof url !== "string") {
+    return false;
+  }
+  
+  url = url.trim();
+  
+  const patterns = [
+    /youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
+    /youtu\.be\/[a-zA-Z0-9_-]{11}/,
+    /youtube\.com\/embed\/[a-zA-Z0-9_-]{11}/,
+    /m\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
+    /music\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
+  ];
+  
+  return patterns.some((pattern) => pattern.test(url));
+}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:106`
+
+#### `getID(url: string | null): string | null`
+
+Extracts 11-character YouTube video ID from various URL formats:
+
+```typescript
+const getID = (url: string | null) => {
+  if (typeof url !== "string") {
+    return null;
+  }
+  url = url.trim();
+  
+  // Match standard watch URL
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Match short URL
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Match embed URL
+  match = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  return null;
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:78`
+
+## Drag and Drop Implementation
+
+CardCrafter uses `@dnd-kit` for song reordering:
+
+```tsx
+import { closestCorners, DndContext, type DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+
+const handleDragEnd = (event: DragEndEvent) => {
+  const { active, over } = event;
+  if (!over || active.id === over.id) return;
+  
+  setCrafterContext((ctx) => {
+    const oldIndex = ctx.inputCard.songs.findIndex((s) => s.id === active.id);
+    const newIndex = ctx.inputCard.songs.findIndex((s) => s.id === over.id);
+    const newSongs = [...ctx.inputCard.songs];
+    newSongs.splice(oldIndex, 1);
+    newSongs.splice(newIndex, 0, ctx.inputCard.songs[oldIndex]);
+    return {
+      ...ctx,
+      inputCard: { ...ctx.inputCard, songs: newSongs },
+    };
+  });
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:123`
+
+### Song List Component
+
+Each song in the list uses `useSortable` hook:
+
+```tsx
+const ListComponent = ({ name, id, setFn, crafterContext, index }) => {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: id });
+    
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      style={{
+        transition: transition,
+        transform: CSS.Transform.toString(transform),
+      }}
+    >
+      <div className="w-full flex justify-between items-center">
+        <p {...listeners}>{formatText(name, 28)}</p>
+        {/* Remove and Copy buttons */}
+      </div>
+    </div>
+  );
+};
+```
+
+## Song Management
+
+### Adding Songs
+
+Users can add songs by:
+
+1. **Manual Entry**: Paste YouTube URL and enter title
+2. **Auto-Fetch**: Click the fetch button to retrieve title from YouTube
+3. **From Slips**: Import from saved playlists via `AddSlips` component
+
+```tsx
+<button
+  onClick={() => {
+    if (!valid(crafterContext.link) || !crafterContext.title) {
+      window.alert("Invalid Link / No Title");
+      return;
+    }
+    
+    // Check if song already exists
+    const existingSongIndex = crafterContext.inputCard.songs.findIndex(
+      (song) => song.id === getID(crafterContext.link)
+    );
+    
+    if (existingSongIndex !== -1) {
+      // Update existing song
+      const updatedSongs = [...crafterContext.inputCard.songs];
+      updatedSongs[existingSongIndex] = {
+        title: crafterContext.title,
+        id: getID(crafterContext.link) || "",
+      };
+      setCrafterContext({
+        ...crafterContext,
+        inputCard: { ...crafterContext.inputCard, songs: updatedSongs },
+      });
+    } else {
+      // Add new song
+      setCrafterContext({
+        ...crafterContext,
+        inputCard: {
+          ...crafterContext.inputCard,
+          songs: [...crafterContext.inputCard.songs, {
+            title: crafterContext.title,
+            id: getID(crafterContext.link) || "",
+          }],
+        },
+      });
+    }
+  }}
+>
+  <Plus size={35} />
+</button>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:326`
+
+### Removing Songs
+
+Songs are removed by splicing the array:
+
+```tsx
+<button
+  onClick={() => {
+    setFn({
+      ...crafterContext,
+      inputCard: {
+        ...crafterContext.inputCard,
+        songs: [
+          ...crafterContext.inputCard.songs.slice(0, index),
+          ...crafterContext.inputCard.songs.slice(index + 1),
+        ],
+      },
+    });
+  }}
+>
+  <BadgeX />
+</button>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:449`
+
+## Download Functionality
+
+The Download button exports the card as a JSON file:
+
+```tsx
+<button
+  onClick={() => {
+    if (!crafterContext.inputCard.properties.title || 
+        crafterContext.inputCard.songs.length === 0) {
+      window.alert("Please enter a title and add at least one song");
+      return;
+    }
+    
+    const jsonstring = `
+    {
+      "loadedCard": {
+        "properties": {
+          "title": "${crafterContext.inputCard.properties.title}",
+          "color": "${crafterContext.inputCard.properties.color}",
+          "blur": "${crafterContext.inputCard.properties.blur}",
+          "bgType": "${crafterContext.inputCard.properties.bgType}",
+          "cdHero": "${crafterContext.inputCard.properties.cdHero}",
+          "char": "${crafterContext.inputCard.properties.char}"
+        },
+        "title": "${crafterContext.inputCard.title}",  
+        "songs": ${JSON.stringify(crafterContext.inputCard.songs)}
+      }
+    }
+    `;
+    
+    download(
+      `${crafterContext.inputCard.properties.title}.card`,
+      jsonstring
+    );
+    
+    setShowCrafter(false);
+  }}
+>
+  Download
+</button>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:195`
+
+## Duplicate Prevention
+
+CardCrafter automatically removes duplicate songs on mount and update:
+
+```tsx
+useEffect(() => {
+  setCrafterContext((prev) => {
+    const uniqueSongsMap = new Map();
+    const filteredSongs = prev.inputCard.songs.filter((song) => {
+      if (uniqueSongsMap.has(song.id)) return false;
+      uniqueSongsMap.set(song.id, true);
+      return true;
+    });
+    
+    if (filteredSongs.length !== prev.inputCard.songs.length) {
+      return {
+        ...prev,
+        inputCard: {
+          ...prev.inputCard,
+          songs: filteredSongs,
+        },
+      };
+    }
+    
+    return prev;
+  });
+}, [crafterContext.inputCard.songs]);
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:55`
+
+<Note>
+  CardCrafter includes an embedded `CardPreviewCardCrafter` component that provides a live preview of the card being edited, with full flip animation support.
+</Note>
+
+## Integration
+
+```tsx
+import CardCrafter from '@/components/CardPreview/CardCrafter/CardCrafter';
+
+function MyComponent() {
+  const [showCrafter, setShowCrafter] = useState(false);
+  const [editCard, setEditCard] = useState(null);
+  
+  return (
+    <>
+      {showCrafter && (
+        <CardCrafter 
+          setShowCrafter={setShowCrafter}
+          initVal={editCard}
+        />
+      )}
+    </>
+  );
+}
+```

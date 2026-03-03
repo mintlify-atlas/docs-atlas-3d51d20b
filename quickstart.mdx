@@ -1,80 +1,159 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart Guide
+description: Get started with Ode in minutes and create your first music card
 ---
 
-## Get started in three steps
+Welcome to Ode! This guide will walk you through creating your first music card, adding songs, and customizing your card's appearance.
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Access the application">
+    Open Ode in your desktop browser. The application requires a desktop environment and is not available on mobile devices.
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    When you first launch Ode, you'll see the main interface with two buttons at the bottom left:
+    - **Create**: Start a new card from scratch
+    - **Edit**: Load and modify an existing card file
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    <Tip>
+      Press `c` on your keyboard to quickly open the card creator at any time.
+    </Tip>
+  </Step>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Step title="Create your first card">
+    Click the **Create** button to open the Card Crafter interface. You'll see three main sections:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    1. **Title section** (top left): Enter a name for your card
+    2. **Card preview** (bottom left): See your card design in real-time
+    3. **Song management** (right side): Add and organize your songs
+    
+    Start by entering a title for your card in the top input field. This will be the name of your music collection.
+    
+    <Tip>
+      The card preview shows how many songs you've added and updates in real-time as you make changes.
+    </Tip>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Add songs using YouTube links">
+    Ode uses YouTube as its music source. Here's how to add songs:
+    
+    1. **Copy a YouTube URL** from any video
+    2. **Paste it into the link field** in the Card Crafter
+    3. **Click the download arrow button** to automatically fetch the video title, or enter a custom title manually
+    4. **Click the + button** to add the song to your card
+    
+    ### Supported YouTube URL formats
+    
+    Ode parses and extracts video IDs from these URL patterns:
+    
+    ```typescript
+    // Standard YouTube watch URLs
+    youtube.com/watch?v=VIDEO_ID
+    
+    // Short URLs
+    youtu.be/VIDEO_ID
+    
+    // Embed URLs
+    youtube.com/embed/VIDEO_ID
+    
+    // Mobile URLs
+    m.youtube.com/watch?v=VIDEO_ID
+    
+    // YouTube Music URLs
+    music.youtube.com/watch?v=VIDEO_ID
+    ```
+    
+    The URL parsing logic extracts the 11-character video ID from any of these formats:
+    
+    ```typescript
+    // Example: getID function (from CardCrafter.tsx:78-104)
+    const getID = (url: string | null) => {
+      url = url.trim();
+      
+      // Matches ?v=VIDEO_ID pattern
+      let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+      if (match) return match[1];
+      
+      // Matches youtu.be/VIDEO_ID pattern
+      match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+      if (match) return match[1];
+      
+      // Additional patterns for embed, mobile, and music URLs...
+      return null;
+    };
+    ```
+    
+    <Tip>
+      You can reorder songs by dragging and dropping them in the list. Hover over a song title to see the full name if it's truncated.
+    </Tip>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Customize your card appearance">
+    Use the **Color Change Option** controls to personalize your card:
+    
+    - **Background Type**: Choose between a solid color or a blurred thumbnail from one of your songs
+    - **Background Color**: Select any color for your card background
+    - **Hero Display**: Choose between showing an emoji character or your card title
+    - **Character/Emoji**: Select an emoji to represent your card
+    
+    Click the card preview to flip it and see the song list on the back side.
+    
+    <Tip>
+      The card preview shows both the front and back of your card. Click the preview to rotate it 180 degrees and inspect the tracklist.
+    </Tip>
+  </Step>
 
-### Step 3: Go live
+  <Step title="Download and share your card">
+    Once you're satisfied with your card:
+    
+    1. **Ensure you have a title** and at least one song added
+    2. **Click the Download button** to save your card
+    3. Your card will be saved as a `.card` file with your chosen title
+    
+    ### Card file format
+    
+    Ode cards are saved as JSON files with the following structure (from CardCrafter.tsx:205-219):
+    
+    ```json
+    {
+      "loadedCard": {
+        "properties": {
+          "title": "My Awesome Playlist",
+          "color": "#11262A",
+          "blur": "1",
+          "bgType": "color",
+          "cdHero": "char",
+          "char": "📻"
+        },
+        "title": "My Awesome Playlist",
+        "songs": [
+          {
+            "title": "Song Title",
+            "id": "VIDEO_ID"
+          }
+        ]
+      }
+    }
+    ```
+    
+    You can share this `.card` file with others, and they can load it by clicking the **Edit** button on the main interface.
+    
+    <Tip>
+      Cards must have at least one song and a title to be downloaded. The application will alert you if either is missing.
+    </Tip>
+  </Step>
+</Steps>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+## Next Steps
 
-## Next steps
+Now that you've created your first card, explore more features:
 
-Now that you have your docs running, explore these key features:
+- [Card Creation](/features/card-creation) - Learn advanced card creation techniques
+- [Customization](/features/customization) - Discover all customization options
+- [Keyboard Shortcuts](/guides/keyboard-shortcuts) - Master keyboard controls for efficient navigation
+- [Importing & Exporting](/guides/importing-exporting) - Share and manage your card collection
+- [Playback Controls](/features/playback) - Control music playback like a pro
 
-<CardGroup cols={2}>
+## Troubleshooting
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+<Tip>
+  If videos are slow to load, it may be due to your internet connection. The application will show a loading screen while buffering. Try reloading the page if a video fails to load.
+</Tip>

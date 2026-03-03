@@ -1,0 +1,429 @@
+---
+title: 'ColorChangeOption'
+description: 'Card property controls for background and hero display customization'
+---
+
+## Purpose
+
+`ColorChangeOption` provides UI controls for customizing card visual properties:
+
+- **Background type**: Color vs. Blur (song thumbnail)
+- **Color picker**: Select solid background color
+- **Blur index**: Choose which song thumbnail to blur
+- **Hero display**: Character/emoji vs. Title text
+- **Character input**: Custom character for hero display
+
+This component is used within `CardCrafter` to configure playlist card appearance.
+
+## Props
+
+<ParamField path="setCrafterContext" type="Function" required>
+  State setter for `CrafterContextType`
+</ParamField>
+
+<ParamField path="crafterContext" type="CrafterContextType" required>
+  Current crafter state containing card being edited
+</ParamField>
+
+## Component Structure
+
+The component renders two "pill" controls side-by-side:
+
+```tsx
+<div className="flex flex-row gap-5">
+  {/* Background control pill */}
+  <div className="w-[10em] h-[3em] bg-black border rounded-full">
+    {/* Color picker OR Palette icon */}
+    <div className="w-[0.1em] h-[80%] bg-separator" />
+    {/* Blur controls OR Droplet icon */}
+  </div>
+  
+  {/* Hero display control pill */}
+  <div className="w-[10em] h-[3em] bg-black border rounded-full">
+    {/* Character input OR Laugh icon */}
+    <div className="w-[0.1em] h-[80%] bg-separator" />
+    {/* Title text OR Type icon */}
+  </div>
+</div>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:24`
+
+## Background Type Selection
+
+### Color Mode
+
+Displays a color picker when `bgType === "color"`:
+
+```tsx
+{crafterContext.inputCard.properties.bgType === "color" ? (
+  <motion.div
+    key="color"
+    initial={{ opacity: 0, x: -10 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -10 }}
+    transition={{ duration: 0.3 }}
+  >
+    <input
+      value={crafterContext.inputCard.properties.color}
+      onChange={(e) => {
+        setCrafterContext((prev: any) => {
+          return {
+            ...prev,
+            inputCard: {
+              ...prev.inputCard,
+              properties: {
+                ...prev.inputCard.properties,
+                color: e.target.value,
+              },
+            },
+          };
+        });
+      }}
+      type="color"
+      style={{ backgroundColor: crafterContext.inputCard.properties.color }}
+      className="aspect-square w-[1.8em] rounded-[0.7em]"
+    />
+    <p>Color</p>
+  </motion.div>
+) : (
+  <Palette onClick={() => /* switch to color mode */} />
+)}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:27`
+
+The native HTML color picker updates the `color` property in real-time.
+
+### Blur Mode
+
+Displays blur index controls when `bgType === "blur"`:
+
+```tsx
+{crafterContext.inputCard.properties.bgType === "blur" ? (
+  <motion.div
+    key="blur"
+    initial={{ opacity: 0, x: 10 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 10 }}
+  >
+    <p>Blur</p>
+    <input
+      value={crafterContext.inputCard.properties.blur}
+      readOnly
+      type="text"
+      className="w-[1.8em] bg-[rgba(255,255,255,0.08)] rounded-[0.7em] text-center"
+    />
+    <div className="flex flex-col">
+      <button onClick={incrementBlur}>
+        <ChevronUp size={20} />
+      </button>
+      <button onClick={decrementBlur}>
+        <ChevronDown size={20} />
+      </button>
+    </div>
+  </motion.div>
+) : (
+  <Droplet onClick={() => /* switch to blur mode */} />
+)}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:88`
+
+### Blur Index Controls
+
+Increment blur index (max = number of songs):
+
+```tsx
+<button
+  onClick={() => {
+    setCrafterContext((prev: any) => {
+      const newBlur = Math.min(
+        crafterContext.inputCard.songs.length,
+        parseInt(prev.inputCard.properties.blur) + 1
+      );
+      return {
+        ...prev,
+        inputCard: {
+          ...prev.inputCard,
+          properties: {
+            ...prev.inputCard.properties,
+            blur: newBlur,
+          },
+        },
+      };
+    });
+  }}
+>
+  <ChevronUp size={20} />
+</button>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:119`
+
+Decrement blur index (min = 1):
+
+```tsx
+<button
+  onClick={() => {
+    setCrafterContext((prev: any) => {
+      const newBlur = Math.max(
+        1,
+        parseInt(prev.inputCard.properties.blur) - 1
+      );
+      return {
+        ...prev,
+        inputCard: {
+          ...prev.inputCard,
+          properties: {
+            ...prev.inputCard.properties,
+            blur: newBlur,
+          },
+        },
+      };
+    });
+  }}
+>
+  <ChevronDown size={20} />
+</button>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:143`
+
+<Info>
+  The blur property is 1-indexed (1 = first song). If blur mode is selected but no songs exist, the component automatically switches back to color mode.
+</Info>
+
+### Toggle to Blur Mode
+
+```tsx
+<Droplet
+  onClick={() => {
+    setCrafterContext((prev: any) => {
+      // Check if songs exist
+      if (prev.inputCard.songs.length === 0) {
+        return {
+          ...prev,
+          inputCard: {
+            ...prev.inputCard,
+            properties: {
+              ...prev.inputCard.properties,
+              bgType: "color",  // Fallback to color
+            },
+          },
+        };
+      }
+      return {
+        ...prev,
+        inputCard: {
+          ...prev.inputCard,
+          properties: {
+            ...prev.inputCard.properties,
+            bgType: "blur",
+          },
+        },
+      };
+    });
+  }}
+/>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:175`
+
+## Hero Display Mode Selection
+
+### Character Mode
+
+Input for custom character/emoji:
+
+```tsx
+{crafterContext.inputCard.properties.cdHero === "char" ? (
+  <motion.div
+    key="char"
+    initial={{ opacity: 0, x: -10 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -10 }}
+  >
+    <input
+      value={crafterContext.inputCard.properties.char}
+      onChange={(e) =>
+        setCrafterContext((prev: any) => {
+          return {
+            ...prev,
+            inputCard: {
+              ...prev.inputCard,
+              properties: {
+                ...prev.inputCard.properties,
+                char: e.target.value,
+              },
+            },
+          };
+        })
+      }
+      type="text"
+      maxLength={6}
+      className="w-[5em] bg-[rgba(255,255,255,0.08)] rounded-[0.7em] text-center"
+    />
+  </motion.div>
+) : (
+  <Laugh onClick={() => /* switch to char mode */} />
+)}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:210`
+
+The input is limited to 6 characters to prevent overflow.
+
+### Title Mode
+
+Displays "Title" text when `cdHero === "title"`:
+
+```tsx
+{crafterContext.inputCard.properties.cdHero === "title" ? (
+  <motion.div
+    key="title"
+    initial={{ opacity: 0, x: 10 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 10 }}
+  >
+    <p>Title</p>
+  </motion.div>
+) : (
+  <Type onClick={() => /* switch to title mode */} />
+)}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:268`
+
+### Toggle Functions
+
+Switch to character mode:
+
+```tsx
+<Laugh
+  onClick={() => {
+    setCrafterContext((prev: any) => {
+      return {
+        ...prev,
+        inputCard: {
+          ...prev.inputCard,
+          properties: {
+            ...prev.inputCard.properties,
+            cdHero: "char",
+          },
+        },
+      };
+    });
+  }}
+/>
+```
+
+Switch to title mode:
+
+```tsx
+<Type
+  onClick={() => {
+    setCrafterContext((prev: any) => {
+      return {
+        ...prev,
+        inputCard: {
+          ...prev.inputCard,
+          properties: {
+            ...prev.inputCard.properties,
+            cdHero: "title",
+          },
+        },
+      };
+    });
+  }}
+/>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:287`
+
+## Animation
+
+All mode switches use Framer Motion for smooth transitions:
+
+```tsx
+<AnimatePresence mode="wait">
+  {condition ? (
+    <motion.div
+      key="unique-key"
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Content */}
+    </motion.div>
+  ) : (
+    <motion.div key="other-key" /* ... */>
+      {/* Alternative content */}
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+
+The `mode="wait"` ensures one element exits before the next enters, preventing layout issues.
+
+## Property Updates
+
+All updates follow the same pattern:
+
+1. Call `setCrafterContext` with updater function
+2. Spread previous state
+3. Update nested `inputCard.properties` object
+4. Preserve all other properties
+
+```tsx
+setCrafterContext((prev: any) => {
+  return {
+    ...prev,
+    inputCard: {
+      ...prev.inputCard,
+      properties: {
+        ...prev.inputCard.properties,
+        [propertyName]: newValue,
+      },
+    },
+  };
+});
+```
+
+This immutable update pattern ensures React detects changes and re-renders appropriately.
+
+<Note>
+  ColorChangeOption is tightly coupled with CardCrafter and expects the `CrafterContextType` structure. It cannot be used independently without this context.
+</Note>
+
+## Integration Example
+
+```tsx
+import ColorChangeOption from '@/components/ColorChangeOption/ColorChangeOption';
+
+function CardCrafter() {
+  const [crafterContext, setCrafterContext] = useState({
+    link: "",
+    title: "",
+    inputCard: {
+      properties: {
+        title: "My Playlist",
+        color: "#3E3F76",
+        blur: "1",
+        bgType: "color",
+        cdHero: "char",
+        char: "🎵",
+      },
+      songs: [],
+    },
+  });
+  
+  return (
+    <ColorChangeOption
+      setCrafterContext={setCrafterContext}
+      crafterContext={crafterContext}
+    />
+  );
+}
+```

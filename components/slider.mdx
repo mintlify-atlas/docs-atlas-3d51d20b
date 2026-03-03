@@ -1,0 +1,340 @@
+---
+title: 'Slider'
+description: 'Custom range slider for playback position control'
+---
+
+## Purpose
+
+`Slider` is a styled HTML range input used for:
+
+- Displaying current playback position
+- Seeking to specific timestamps
+- Visual feedback with custom thumb styling
+
+Integrated with the `Player` component to control YouTube playback position.
+
+## Props
+
+<ParamField path="minimum" type="number" default="0">
+  Minimum slider value (typically 0 for start of track)
+</ParamField>
+
+<ParamField path="maximum" type="number" default="100">
+  Maximum slider value (track duration in seconds)
+</ParamField>
+
+<ParamField path="value" type="number" required>
+  Current slider position (current playback time in seconds)
+</ParamField>
+
+<ParamField path="onChangeFn" type="(e: React.ChangeEvent<HTMLInputElement>) => void" required>
+  Callback fired when user drags slider
+</ParamField>
+
+## Component Implementation
+
+```tsx
+import styled from "styled-components";
+
+const Slider = ({
+  minimum = 0,
+  maximum = 100,
+  value,
+  onChangeFn,
+}: {
+  minimum?: number;
+  maximum?: number;
+  value: number;
+  onChangeFn: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) => {
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "absolute",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "calc(45px + 25.5rem)",
+        translate: "0 3px",
+      }}
+    >
+      <StyledWrapper className="w-full">
+        <input
+          style={{ width: "100%" }}
+          type="range"
+          min={minimum}
+          max={maximum}
+          value={value}
+          onChange={onChangeFn}
+          className="PB-range-slider"
+          id="myRange"
+        />
+      </StyledWrapper>
+    </div>
+  );
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Slider/Slider.tsx:5`
+
+## Styled Components
+
+The slider uses `styled-components` for custom styling:
+
+```tsx
+const StyledWrapper = styled.div`
+  .PB-range-slider {
+    -webkit-appearance: none;
+    width: calc(45rem - 5rem - (80rem / 14));
+    height: 15px;
+    border-radius: 5px;
+    outline: none;
+    opacity: 1;
+    -webkit-transition: 0.2s;
+    transition: all 0.2s ease;
+  }
+
+  .PB-range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0.4em;
+    height: 5em;
+    border-radius: 1000px;
+    shadow: inset 0px 0px 10px 10px #000000;
+    background: #8c0b0b;
+    background: linear-gradient(
+      90deg,
+      rgba(140, 11, 11, 1) 0%,
+      rgba(207, 8, 8, 1) 100%
+    );
+    transition: all 0.3s ease;
+  }
+
+  .PB-range-slider::-webkit-slider-thumb:hover {
+    transition: 0.3s ease-in-out;
+  }
+  
+  .PB-range-slider::-webkit-slider-thumb:active {
+    transform: scale(1.2);
+    transition: 0.3s ease-in-out;
+  }
+`;
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Slider/Slider.tsx:46`
+
+## Thumb Styling
+
+The slider thumb has:
+
+- **Size**: `0.4em` wide × `5em` tall (vertical orientation)
+- **Shape**: Fully rounded (`border-radius: 1000px`)
+- **Color**: Red gradient from `#8c0b0b` to `#cf0808`
+- **Shadow**: Inset shadow for depth
+- **Hover**: Smooth transition on hover
+- **Active**: Scales to 1.2× when dragging
+
+```css
+.PB-range-slider::-webkit-slider-thumb {
+  width: 0.4em;
+  height: 5em;
+  border-radius: 1000px;
+  background: linear-gradient(
+    90deg,
+    rgba(140, 11, 11, 1) 0%,
+    rgba(207, 8, 8, 1) 100%
+  );
+}
+
+.PB-range-slider::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+```
+
+<Note>
+  The slider only includes WebKit-specific styling (`::-webkit-slider-thumb`). For cross-browser support, add `::-moz-range-thumb` for Firefox.
+</Note>
+
+## Integration with Player
+
+The slider is positioned absolutely over the audio bars:
+
+```tsx
+// In Player component
+<div className="bg-black w-full h-[7em] rounded-full flex items-center">
+  {/* Audio bars */}
+  {Array.from({ length: 14 }).map((_, i) => (
+    <div key={i} className="flex items-end w-[0.4em] h-full rounded-full">
+      <div style={{ height: `${barValues[i] * 100}%` }} />
+    </div>
+  ))}
+  
+  {/* Slider overlaid on top */}
+  <Slider
+    minimum={0}
+    maximum={timestamp.total}
+    value={timestamp.current}
+    onChangeFn={(e) => {
+      seekFn(Number(e.target.value));
+    }}
+  />
+</div>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:147`
+
+## Seek Functionality
+
+When the user drags the slider, it calls the `seekFn` from `serviceProvider`:
+
+```tsx
+import { seekFn } from '@/services/serviceProvider';
+
+<Slider
+  value={timestamp.current}
+  onChangeFn={(e) => {
+    seekFn(Number(e.target.value));
+  }}
+/>
+```
+
+The `seekFn` communicates with the YouTube iframe:
+
+```tsx
+// In serviceProvider.ts
+const seekFn = (seconds: number) => {
+  ytElement.command("seekTo", [seconds]);
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/services/serviceProvider.ts:52`
+
+## Value/onChange Interface
+
+The slider follows controlled component pattern:
+
+```tsx
+interface SliderProps {
+  value: number;                           // Current position (controlled)
+  onChangeFn: (e: ChangeEvent) => void;    // Update handler
+  minimum?: number;                        // Min value
+  maximum?: number;                        // Max value
+}
+```
+
+The parent component manages state:
+
+```tsx
+const [timestamp, setTimestamp] = useState({ current: 0, total: 0 });
+
+<Slider
+  value={timestamp.current}              // Read from state
+  maximum={timestamp.total}
+  onChangeFn={(e) => {                   // Update state
+    const newTime = Number(e.target.value);
+    seekFn(newTime);
+  }}
+/>
+```
+
+## Positioning
+
+The slider container is positioned absolutely:
+
+```tsx
+<div
+  style={{
+    display: "flex",
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "calc(45px + 25.5rem)",
+    translate: "0 3px",
+  }}
+>
+```
+
+This allows it to overlay on top of the audio bar container.
+
+## Responsive Width
+
+The slider width is calculated to match the audio bar container:
+
+```css
+width: calc(45rem - 5rem - (80rem / 14));
+```
+
+This ensures the slider aligns perfectly with the visual bars beneath it.
+
+## Accessibility
+
+HTML range inputs provide built-in accessibility:
+
+- Keyboard control: Arrow keys adjust value
+- Screen readers: Announce current value
+- Focus indicators: Browser default outline
+
+Consider adding:
+
+```tsx
+<input
+  type="range"
+  aria-label="Playback position"
+  aria-valuemin={minimum}
+  aria-valuemax={maximum}
+  aria-valuenow={value}
+  aria-valuetext={`${formatTime(value)} of ${formatTime(maximum)}`}
+/>
+```
+
+## Cross-Browser Support
+
+To support Firefox, add:
+
+```css
+.PB-range-slider::-moz-range-thumb {
+  width: 0.4em;
+  height: 5em;
+  border-radius: 1000px;
+  background: linear-gradient(
+    90deg,
+    rgba(140, 11, 11, 1) 0%,
+    rgba(207, 8, 8, 1) 100%
+  );
+  border: none;
+  cursor: pointer;
+}
+
+.PB-range-slider::-moz-range-thumb:active {
+  transform: scale(1.2);
+}
+```
+
+## Integration Example
+
+```tsx
+import Slider from '@/components/Slider/Slider';
+import { seekFn } from '@/services/serviceProvider';
+import { useState } from 'react';
+
+function CustomPlayer() {
+  const [timestamp, setTimestamp] = useState({ current: 0, total: 300 });
+  
+  return (
+    <Slider
+      minimum={0}
+      maximum={timestamp.total}
+      value={timestamp.current}
+      onChangeFn={(e) => {
+        const newTime = Number(e.target.value);
+        seekFn(newTime);
+        setTimestamp(prev => ({ ...prev, current: newTime }));
+      }}
+    />
+  );
+}
+```
+
+<Info>
+  The Slider component is designed specifically for the Player's audio bar layout. For general-purpose sliders, consider creating a separate reusable variant.
+</Info>

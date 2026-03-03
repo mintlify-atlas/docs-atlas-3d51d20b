@@ -1,0 +1,385 @@
+---
+title: 'Player'
+description: 'YouTube playback control interface with visual audio bars'
+---
+
+## Purpose
+
+`Player` is the main playback interface providing:
+
+- YouTube video playback via hidden iframe
+- Play/pause/skip controls
+- Seek forward/backward (10 seconds)
+- Visual audio bar animation
+- Playback position slider
+- Time display
+- Access to slip (playlist) management
+
+## Props
+
+<ParamField path="timestamp" type="{ current: number; total: number }" required>
+  Current playback position and total duration in seconds
+</ParamField>
+
+<ParamField path="setTimestamp" type="React.Dispatch<SetStateAction<{ current: number; total: number }>>" required>
+  State setter for timestamp updates
+</ParamField>
+
+<ParamField path="yt_ref" type="React.RefObject<HTMLIFrameElement>" required>
+  Reference to the YouTube iframe element
+</ParamField>
+
+## Player States
+
+The player tracks YouTube's player state:
+
+```typescript
+type PlayerState = 
+  | 'PLAYING'    // Video is playing
+  | 'PAUSED'     // Video is paused
+  | 'BUFFERING'  // Video is loading
+  | 'CUED'       // Video loaded but not started
+  | 'ENDED';     // Video finished playing
+```
+
+State is stored in context:
+
+```tsx
+const { appContext, setAppContext } = useContext(LoadedCard);
+// appContext.playerState contains current state
+```
+
+## YouTube Integration
+
+The component uses `youtube-iframe-ctrl` library for iframe communication:
+
+### Setup
+
+```tsx
+import { ytSetup, ytElement } from '@/services/serviceProvider';
+
+useEffect(() => {
+  if (!yt_ref.current) return;
+  ytSetup(yt_ref);
+  ytElement.command("loadVideoById", [
+    appContext.loadedCard.songs[appContext.currentTrack].id,
+  ]);
+  
+  // Event listeners
+}, []);
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:33`
+
+### Event Listeners
+
+#### Time Updates
+
+```tsx
+yt_ref.current.addEventListener("ytmessage", (e: any) => {
+  const { info } = e.detail || {};
+  if (info?.progressState) {
+    handleTimeUpdate({
+      current: info.progressState.current,
+      total: info.progressState.duration,
+    });
+  }
+});
+```
+
+Updates timestamp state for display and slider position.
+
+#### State Changes
+
+```tsx
+yt_ref.current.addEventListener("ytstatechange", (e: any) => {
+  setAppContext((prev: typeof appContext) => ({
+    ...prev,
+    playerState: e.detail,
+  }));
+});
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:53`
+
+### Auto-Play Next Track
+
+```tsx
+useEffect(() => {
+  if (appContext.playerState === "ENDED") {
+    next_fn();
+  }
+}, [appContext.playerState]);
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:107`
+
+## Playback Controls
+
+### Play/Pause
+
+```tsx
+import { playFn, pauseFn } from '@/services/serviceProvider';
+
+<Button
+  lucideString={
+    appContext.playerState === "PLAYING"
+      ? "Pause"
+      : appContext.playerState === "PAUSED"
+        ? "Music2"
+        : appContext.playerState === "BUFFERING"
+          ? "Loader"
+          : "Music2"
+  }
+  clickAction={() => {
+    appContext.playerState === "PLAYING" ? pauseFn() : playFn();
+  }}
+  scale={3}
+/>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:220`
+
+The button icon changes based on player state.
+
+### Skip Previous
+
+```tsx
+const prev_fn = () => {
+  setAppContext((prev: any) => {
+    const newIndex = Math.max(prev.currentTrack - 1, 0);
+    return {
+      ...prev,
+      currentTrack: newIndex,
+    };
+  });
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:69`
+
+### Skip Next
+
+```tsx
+const next_fn = () => {
+  setAppContext((prev: any) => {
+    const maxIndex = prev.loadedCard.songs.length - 1;
+    const newIndex = Math.min(prev.currentTrack + 1, maxIndex);
+    return {
+      ...prev,
+      currentTrack: newIndex,
+    };
+  });
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:79`
+
+### Seek Forward/Backward
+
+```tsx
+import { seekFn } from '@/services/serviceProvider';
+
+// Seek backward 10 seconds
+<button onClick={() => seekFn(timestamp.current - 10)}>
+  <LucideIcons.RotateCcw size={25} />
+</button>
+
+// Seek forward 10 seconds
+<button onClick={() => seekFn(timestamp.current + 10)}>
+  <LucideIcons.RotateCw size={25} />
+</button>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:123`
+
+## Visual Audio Bars
+
+Animated bars visualize playback:
+
+```tsx
+const [barValues, setBarValues] = useState([
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+]);
+
+useEffect(() => {
+  if (appContext.playerState === "PLAYING") {
+    const interval = setInterval(() => {
+      setBarValues((prevValues) => prevValues.map(() => Math.random()));
+    }, 200);
+    
+    return () => clearInterval(interval);
+  } else {
+    setBarValues([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  }
+}, [appContext.playerState]);
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:90`
+
+### Bar Rendering
+
+```tsx
+{Array.from({ length: 14 }).map((_, i) => (
+  <div key={i} className="flex items-end w-[0.4em] h-[calc(100%_-_2em)] rounded-full">
+    <div
+      style={{
+        height: `${Math.floor(barValues[i] * 100)}%`,
+        background: "rgba(255, 255, 255, 0.08)",
+        transition: "all 750ms",
+      }}
+      className="w-full rounded-full"
+    >
+    </div>
+  </div>
+))}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:132`
+
+Bars update every 200ms with random heights during playback, creating a visual rhythm.
+
+## Display Section
+
+Retro-styled display shows current track info:
+
+```tsx
+<div
+  style={{
+    fontFamily: "Pixelify Sans",
+    background: "rgba(0,5,0,0.5)",
+    boxShadow: "inset 0 -20px 100px 2px rgba(0,0,0,0.1)",
+  }}
+  className="w-full h-full border-[1px_solid_black] rounded-[20px] grid grid-rows-2 text-[rgba(200,255,200,0.3)]"
+>
+  <p style={{ textShadow: "0 0 30px rgba(0,150,0,0.5)" }}>
+    {formatTime(timestamp.current)}/{formatTime(timestamp.total)}
+  </p>
+  <p style={{ textShadow: "0 0 30px rgba(0,150,0,0.5)" }}>
+    {formatText(
+      appContext.loadedCard.songs[appContext.currentTrack].title,
+      38
+    )}
+  </p>
+</div>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:170`
+
+Includes:
+- **Time**: Current/total in MM:SS format
+- **Title**: Truncated to 38 characters
+- **Slip Icon**: Opens `SlipPopUp` for playlist management
+
+## Button Component
+
+Reusable button for player controls:
+
+```tsx
+export const Button = ({
+  lucideString,
+  clickAction,
+  scale,
+}: {
+  lucideString: string;      // Lucide icon name
+  clickAction: () => void;   // Click handler
+  scale?: number;            // Size multiplier
+}) => {
+  const Icon = (LucideIcons[lucideString as keyof typeof LucideIcons] ??
+    LucideIcons.Ban) as React.ElementType;
+    
+  return (
+    <button
+      onClick={clickAction}
+      style={{
+        width: `calc(${scale ?? 1} * 4em)`,
+        background: "radial-gradient(#242424, #0e0e0e)",
+        boxShadow:
+          "0 0 0px 2px rgba(255,255,255,0.1), 20px 20px 60px #0b0b0b, -20px -20px 60px #131313",
+      }}
+      className="rounded-[35%] transition-all duration-50 active:scale-[0.98]"
+    >
+      <Icon size={(scale ?? 1) * 20} />
+    </button>
+  );
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:253`
+
+### Usage
+
+```tsx
+<Button lucideString="SkipBack" clickAction={prev_fn} scale={2.3} />
+<Button lucideString="Pause" clickAction={pauseFn} scale={3} />
+<Button lucideString="SkipForward" clickAction={next_fn} scale={2.3} />
+```
+
+## Slider Integration
+
+Playback position slider:
+
+```tsx
+<Slider
+  minimum={0}
+  maximum={timestamp.total}
+  value={timestamp.current}
+  onChangeFn={(e) => {
+    seekFn(Number(e.target.value));
+  }}
+/>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:147`
+
+See [Slider](/components/slider) documentation for details.
+
+## SlipPopUp Integration
+
+```tsx
+const [showSlipPopUp, setShowSlipPopUp] = useState(false);
+
+<AnimatePresence>
+  {showSlipPopUp && (
+    <SlipPopUp
+      showSlipPopUp={showSlipPopUp}
+      setShowSlipPopUp={setShowSlipPopUp}
+    />
+  )}
+</AnimatePresence>
+
+<img
+  src="./Vector.svg"
+  onClick={() => setShowSlipPopUp(!showSlipPopUp)}
+  className={appContext.playerState === "PLAYING" ? "animate-pulse" : ""}
+/>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/Player/Player.tsx:194`
+
+<Info>
+  The Player component is the central hub connecting playback control, visual feedback, and playlist management.
+</Info>
+
+## Integration Example
+
+```tsx
+import Player from '@/components/Player/Player';
+import YouTubePlayer from '@/components/YoutubePlayer/YoutubePlayer';
+import { useRef, useState } from 'react';
+
+function App() {
+  const yt_ref = useRef<HTMLIFrameElement>(null);
+  const [timestamp, setTimestamp] = useState({ current: 0, total: 0 });
+  
+  return (
+    <ContextProvider>
+      <Player 
+        timestamp={timestamp}
+        setTimestamp={setTimestamp}
+        yt_ref={yt_ref}
+      />
+    </ContextProvider>
+  );
+}
+```

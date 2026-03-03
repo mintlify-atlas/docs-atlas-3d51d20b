@@ -1,0 +1,232 @@
+---
+title: Customization
+description: Customize your playlist cards with colors, backgrounds, and characters
+---
+
+Ode gives you complete control over how your playlist cards look. Customize colors, backgrounds, and hero elements to create a unique visual identity for each playlist.
+
+## Card properties
+
+Every card in Ode has a set of customizable properties defined in the card structure:
+
+```typescript
+// From types.ts
+interface cardContextType {
+  properties: {
+    title: string;      // Card title displayed in the interface
+    color: string;      // Hex color code for solid backgrounds
+    blur: string;       // Index of song to use for blurred background
+    bgType: string;     // "color" or "blur"
+    cdHero: string;     // "char" or "title"
+    char: string;       // Character/emoji to display
+  };
+  title: string;
+  songs: { title: string; id: string }[];
+}
+```
+
+## Background customization
+
+You can choose between two background types for your cards:
+
+### Solid color background
+
+Set `bgType` to `"color"` to use a solid color background. The `color` property accepts any valid hex color code:
+
+```json
+{
+  "bgType": "color",
+  "color": "#11262A"
+}
+```
+
+<Accordion title="Popular color schemes">
+  - **Dark Ocean**: `#11262A` - Deep teal blue
+  - **Midnight**: `#0B0B0B` - Near black
+  - **Sunset**: `#FF6B6B` - Warm coral red
+  - **Forest**: `#2D5016` - Deep green
+  - **Purple Haze**: `#4A148C` - Rich purple
+</Accordion>
+
+### Blurred background
+
+Set `bgType` to `"blur"` to use a blurred YouTube thumbnail as the background. The `blur` property specifies which song's thumbnail to use (1-indexed):
+
+```json
+{
+  "bgType": "blur",
+  "blur": "1"
+}
+```
+
+This creates a dynamic, visually rich background by using the thumbnail from the specified song, blurred and darkened for readability.
+
+```typescript
+// From CardCrafter.tsx:505-527
+{crafterContext.inputCard.properties.bgType === "blur" && (
+  <>
+    {crafterContext.inputCard.songs[
+      crafterContext.inputCard.properties.blur - 1
+    ] ? (
+      <img
+        src={`https://img.youtube.com/vi/${
+          crafterContext.inputCard.songs[
+            crafterContext.inputCard.properties.blur - 1
+          ].id
+        }/0.jpg`}
+        alt="Song Thumbnail"
+        className="w-full h-full object-cover blur-[1em] block brightness-50"
+      />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-white">
+        <p className="text-sm opacity-60">
+          No background available
+        </p>
+      </div>
+    )}
+  </>
+)}
+```
+
+<Note>
+  The blur index is 1-based, so `"blur": "1"` uses the first song's thumbnail. If the specified song doesn't exist, a fallback message is displayed.
+</Note>
+
+## Hero display options
+
+The card hero is the central visual element displayed on the card. You can choose between two display modes:
+
+### Character/emoji display
+
+Set `cdHero` to `"char"` to display a character or emoji. Use the `char` property to specify what to display:
+
+```json
+{
+  "cdHero": "char",
+  "char": "📻"
+}
+```
+
+Common character options:
+- Emojis: `"🎵"`, `"🎸"`, `"🎹"`, `"🎧"`, `"📻"`, `"💿"`
+- Letters: `"A"`, `"M"`, `"♪"`
+- Symbols: `"★"`, `"♫"`, `"◆"`
+
+```typescript
+// From CardCrafter.tsx:528-536
+{crafterContext.inputCard.properties.cdHero === "char" ? (
+  <p
+    className="flex w-fit h-fit justify-start items-end text-[2.3em] absolute p-2 text-white"
+    style={{
+      fontFamily: "Pixelify Sans",
+    }}
+  >
+    {crafterContext.inputCard.properties.char}
+  </p>
+)
+```
+
+### Title display
+
+Set `cdHero` to `"title"` to display the card title as the hero element:
+
+```json
+{
+  "cdHero": "title",
+  "title": "Summer Vibes 2024"
+}
+```
+
+The title is displayed with special styling:
+
+```typescript
+// From CardCrafter.tsx:537-546
+<p
+  className="whitespace-nowrap overflow-hidden overflow-ellipsis flex w-full h-fit justify-start items-end text-[1.2em] absolute bottom-0 left-0 p-2 text-white"
+  style={{
+    fontFamily: "Pixelify Sans",
+  }}
+>
+  {crafterContext.inputCard.properties.title}
+</p>
+```
+
+<Warning>
+  Long titles will be truncated with an ellipsis to fit within the card boundaries.
+</Warning>
+
+## Default card properties
+
+When creating a new card, these default properties are applied:
+
+```typescript
+// From CardCrafter.tsx:42-49
+{
+  properties: {
+    title: "",
+    color: "#11262A",
+    blur: "1",
+    bgType: "color",
+    cdHero: "char",
+    char: "📻",
+  },
+  title: "",
+  songs: [],
+}
+```
+
+## Visual examples
+
+Here are some example card configurations:
+
+<Accordion title="Retro radio theme">
+  ```json
+  {
+    "properties": {
+      "title": "Oldies",
+      "color": "#8B4513",
+      "bgType": "color",
+      "cdHero": "char",
+      "char": "📻"
+    }
+  }
+  ```
+</Accordion>
+
+<Accordion title="Album art with title">
+  ```json
+  {
+    "properties": {
+      "title": "Best of 2024",
+      "blur": "1",
+      "bgType": "blur",
+      "cdHero": "title"
+    }
+  }
+  ```
+</Accordion>
+
+<Accordion title="Minimalist design">
+  ```json
+  {
+    "properties": {
+      "title": "Focus",
+      "color": "#000000",
+      "bgType": "color",
+      "cdHero": "char",
+      "char": "◆"
+    }
+  }
+  ```
+</Accordion>
+
+## Live preview
+
+The CardCrafter shows a real-time preview of your card as you customize it. The preview includes:
+
+- Current background (color or blurred thumbnail)
+- Hero element (character or title)
+- Song count indicator
+- Expandable song list
+
+Click the preview to flip it and view the complete song list on the back of the card.

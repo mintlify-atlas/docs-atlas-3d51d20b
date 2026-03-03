@@ -1,0 +1,298 @@
+---
+title: Playback
+description: Control music playback with the integrated YouTube player
+---
+
+The Ode Player provides a full-featured music playback experience with YouTube integration, visual audio feedback, and intuitive controls.
+
+## Player features
+
+The Player component integrates YouTube playback with a custom interface:
+
+- Play, pause, and seek controls
+- Visual audio bars that animate with playback
+- Track navigation (previous/next)
+- Timestamp display
+- Quick access to Slips
+
+## YouTube integration
+
+Ode uses the `youtube-iframe-ctrl` library to control YouTube playback. This provides a clean API for interacting with the embedded YouTube player:
+
+```typescript
+// From serviceProvider.ts:1-22
+import YouTubeIFrameCtrl from "youtube-iframe-ctrl";
+
+let ytElement: YouTubeIFrameCtrl;
+
+const ytSetup = (yt_ref: React.RefObject<HTMLIFrameElement>) => {
+  if (!yt_ref.current) return;
+  ytElement = new YouTubeIFrameCtrl(yt_ref.current);
+};
+
+const playFn = () => {
+  ytElement.play();
+};
+
+const pauseFn = () => {
+  ytElement.pause();
+};
+
+const seekFn = (seconds: number) => {
+  ytElement.command("seekTo", [seconds]);
+};
+```
+
+### Loading videos
+
+When you select a track, the Player automatically loads the corresponding YouTube video:
+
+```typescript
+// From Player.tsx:36-38
+ytElement.command("loadVideoById", [
+  appContext.loadedCard.songs[appContext.currentTrack].id,
+]);
+```
+
+The player responds to track changes and loads new videos seamlessly:
+
+```typescript
+// From Player.tsx:61-67
+useEffect(() => {
+  if (ytElement) {
+    ytElement.command("loadVideoById", [
+      appContext.loadedCard.songs[appContext.currentTrack].id,
+    ]);
+  }
+}, [appContext.currentTrack, appContext.loadedCard]);
+```
+
+## Playback controls
+
+### Play and pause
+
+The main playback button changes based on the player state:
+
+```typescript
+// From Player.tsx:220-234
+<Button
+  lucideString={
+    appContext.playerState === "PLAYING"
+      ? "Pause"
+      : appContext.playerState === "PAUSED"
+        ? "Music2"
+        : appContext.playerState === "BUFFERING"
+          ? "Loader"
+          : "Music2"
+  }
+  clickAction={() => {
+    appContext.playerState === "PLAYING" ? pauseFn() : playFn();
+  }}
+  scale={3}
+/>
+```
+
+### Seeking
+
+The Player includes skip forward and backward buttons (10 seconds each):
+
+```typescript
+// From Player.tsx:123
+onClick={() => seekFn(timestamp.current - 10)}
+
+// From Player.tsx:162
+onClick={() => seekFn(timestamp.current + 10)}
+```
+
+You can also seek to specific positions using the time slider, which spans the full width of the player.
+
+## Player states
+
+The Player tracks the current state of YouTube playback:
+
+- `PLAYING` - Video is actively playing
+- `PAUSED` - Video is paused
+- `BUFFERING` - Video is loading/buffering
+- `CUED` - Video is loaded and ready to play
+- `ENDED` - Video has finished playing
+
+```typescript
+// From Player.tsx:53-58
+yt_ref.current.addEventListener("ytstatechange", (e: any) => {
+  setAppContext((prev: typeof appContext) => ({
+    ...prev,
+    playerState: e.detail,
+  }));
+});
+```
+
+### Auto-advance on track end
+
+When a track finishes playing, the Player automatically advances to the next song:
+
+```typescript
+// From Player.tsx:106-109
+if (appContext.playerState === "ENDED") {
+  next_fn();
+}
+```
+
+## Track navigation
+
+Navigate through your playlist with previous and next buttons:
+
+```typescript
+// From Player.tsx:69-88
+const prev_fn = () => {
+  setAppContext((prev: any) => {
+    const newIndex = Math.max(prev.currentTrack - 1, 0);
+    return {
+      ...prev,
+      currentTrack: newIndex,
+    };
+  });
+};
+
+const next_fn = () => {
+  setAppContext((prev: any) => {
+    const maxIndex = prev.loadedCard.songs.length - 1;
+    const newIndex = Math.min(prev.currentTrack + 1, maxIndex);
+    return {
+      ...prev,
+      currentTrack: newIndex,
+    };
+  });
+};
+```
+
+<Note>
+  Track navigation is bounded - you can't skip before the first track or after the last track.
+</Note>
+
+## Visual audio bars
+
+The Player displays 14 animated audio bars that visualize playback activity:
+
+```typescript
+// From Player.tsx:96-105
+useEffect(() => {
+  if (appContext.playerState === "PLAYING") {
+    const interval = setInterval(() => {
+      setBarValues((prevValues) => prevValues.map(() => Math.random()));
+    }, 200);
+
+    return () => clearInterval(interval);
+  } else {
+    setBarValues([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  }
+}, [appContext.playerState]);
+```
+
+The bars update every 200ms with random heights when playing, creating a dynamic visual effect:
+
+```typescript
+// From Player.tsx:132-146
+{Array.from({ length: 14 }).map((_, i) => (
+  <div
+    key={i}
+    className="flex items-end w-[0.4em] mx-3 h-[calc(100%_-_2em)] rounded-full bg-[rgba(255,255,255,0.1)]"
+  >
+    <div
+      style={{
+        height: `${Math.floor(barValues[i] * 100)}%`,
+        background: "rgba(255, 255, 255, 0.08)",
+        transition: "all 750ms",
+      }}
+      className="w-full rounded-full"
+    ></div>
+  </div>
+))}
+```
+
+When playback is paused or stopped, all bars reset to zero height.
+
+## Timestamp display
+
+The Player shows current position and total duration in `M:SS` format:
+
+```typescript
+// From serviceProvider.ts:56-60
+const formatTime = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds - minutes * 60);
+  return `${minutes}:${secs < 10 ? "0" + secs : secs}`;
+};
+```
+
+Timestamps are updated in real-time as the video plays:
+
+```typescript
+// From Player.tsx:40-51
+const handleTimeUpdate = (data: { current: number; total: number }) => {
+  setTimestamp(data);
+};
+
+yt_ref.current.addEventListener("ytmessage", (e: any) => {
+  const { info } = e.detail || {};
+  if (info?.progressState) {
+    handleTimeUpdate({
+      current: info.progressState.current,
+      total: info.progressState.duration,
+    });
+  }
+});
+```
+
+The display shows:
+
+```
+3:45/5:20
+```
+
+Where `3:45` is the current position and `5:20` is the total duration.
+
+## Now playing display
+
+The Player shows the currently playing track title with automatic text truncation for long titles:
+
+```typescript
+// From Player.tsx:188-191
+{formatText(
+  appContext.loadedCard.songs[appContext.currentTrack].title,
+  38,
+)}
+```
+
+Titles longer than 38 characters are truncated with an ellipsis:
+
+```typescript
+// From serviceProvider.ts:62-64
+const formatText = (text: string, limit: number) => {
+  return text.slice(0, limit) + (text.length > limit ? "..." : "");
+};
+```
+
+## Quick access to Slips
+
+The Player includes a pulsing icon that provides quick access to the Slip management interface. Click it to:
+
+- Add the current song to Slips
+- Browse existing Slips
+- Create new Slips
+
+The icon pulses when music is playing:
+
+```typescript
+// From Player.tsx:202-211
+<img
+  src="./Vector.svg"
+  width={"80%"}
+  height={"80%"}
+  className={
+    (appContext.playerState === "PLAYING" ? "animate-pulse" : "") +
+    " hover:scale-110 active:scale-100 transition-all duration-200 ease-in-out"
+  }
+  draggable={false}
+  onClick={() => setShowSlipPopUp(!showSlipPopUp)}
+/>
+```

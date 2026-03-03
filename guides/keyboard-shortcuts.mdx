@@ -1,0 +1,50 @@
+---
+title: Keyboard shortcuts
+description: Master Ode's keyboard shortcuts for efficient playlist navigation and control
+---
+
+Ode provides a comprehensive set of keyboard shortcuts to help you navigate and control your music without reaching for the mouse. These shortcuts are designed to give you quick access to playback controls, track navigation, and UI management.
+
+<Note>
+Keyboard shortcuts only work when the Card Crafter and Slip Pop-Up are closed. Press `Escape` to close the Card Crafter and enable shortcuts.
+</Note>
+
+## Playback controls
+
+Control music playback with these essential shortcuts:
+
+| Shortcut | Action | Details |
+|----------|--------|----------|
+| `Space` | Play/Pause | Toggles between play and pause states. Works when player is unstarted, playing, or paused |
+| `j` | Seek backward | Jumps backward 10 seconds in the current track |
+| `k` | Seek forward | Jumps forward 10 seconds in the current track |
+
+## Track navigation
+
+Move between tracks in your playlist:
+
+| Shortcut | Action | Details |
+|----------|--------|----------|
+| `h` | Previous track | Navigates to the previous song in the playlist. Stays at track 0 if already at the beginning |
+| `l` | Next track | Navigates to the next song in the playlist. Stops at the last track |
+
+## UI controls
+
+Manage the Ode interface:
+
+| Shortcut | Action | Details |
+|----------|--------|----------|
+| `o` | Toggle pull | Opens or closes the file drop plate |
+| `c` | Open Card Crafter | Opens the Card Crafter interface to create a new card |
+| `Escape` | Close Card Crafter | Closes the Card Crafter modal and returns to the main view |
+
+## Tips for efficient navigation
+
+- **Vim-style navigation**: The `h` and `l` keys follow Vim conventions for left/right movement, making track navigation intuitive for developers.
+- **Quick scrubbing**: Use `j` and `k` repeatedly to scrub through a track in 10-second increments.
+- **Rapid creation**: Press `c` to quickly open the Card Crafter without clicking the Create button.
+- **Seamless workflow**: Most shortcuts are disabled when Card Crafter is open to prevent conflicts with text input. Only `Escape` works in this state.
+
+## Implementation reference
+
+The keyboard shortcuts are implemented in `/workspace/source/react/src/App.tsx:90-156` using a window-level `keydown` event listener. The handler checks the current UI state before executing shortcuts to prevent interference with input fields.

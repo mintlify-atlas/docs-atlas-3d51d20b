@@ -1,0 +1,157 @@
+---
+title: 'Component Architecture Overview'
+description: 'Understanding Ode component structure and state management'
+---
+
+## Overview
+
+Ode is built with a modular React component architecture that separates concerns between music playback, playlist management, and UI interactions. The application uses a centralized state management pattern through React Context to share playlist data and player state across components.
+
+## Component Hierarchy
+
+```
+App (ContextProvider)
+├── Player
+│   ├── YouTubePlayer (hidden iframe)
+│   ├── Slider (playback position)
+│   ├── Button components (play/pause/skip)
+│   └── SlipPopUp (playlist collections)
+│       └── SlipPreview
+├── CardPreview (playlist card display)
+├── CardCrafter (playlist editor)
+│   ├── ColorChangeOption
+│   ├── AddSlips
+│   └── DnD song list
+└── FileDropPlate (file upload)
+```
+
+## State Management
+
+### LoadedCard Context
+
+The entire application state is managed through the `LoadedCard` context defined in `ContextService.tsx`. This context provides:
+
+```typescript
+interface AppContext {
+  playerState: 'PLAYING' | 'PAUSED' | 'BUFFERING' | 'CUED' | 'ENDED';
+  currentTrack: number;
+  loadedCard: cardContextType;
+}
+```
+
+### Card Context Type
+
+Playlist cards follow this structure:
+
+```typescript
+interface cardContextType {
+  properties: {
+    title: string;       // Playlist title
+    color: string;       // Background color (hex)
+    blur: string;        // Song index for blur background
+    bgType: string;      // 'color' | 'blur'
+    cdHero: string;      // 'char' | 'title'
+    char: string;        // Custom character/emoji
+  };
+  title: string;         // Legacy field
+  songs: {
+    title: string;       // Song title
+    id: string;          // YouTube video ID
+  }[];
+}
+```
+
+### Context Provider
+
+The `ContextProvider` component wraps the entire app and provides default state:
+
+```tsx
+function ContextProvider({ children }: { children: React.ReactNode }) {
+  const [appContext, setAppContext] = useState({
+    playerState: "CUED",
+    currentTrack: 0,
+    loadedCard: {
+      properties: { /* default card properties */ },
+      songs: [ /* default songs */ ]
+    }
+  });
+
+  return (
+    <LoadedCard.Provider value={{ appContext, setAppContext }}>
+      {children}
+    </LoadedCard.Provider>
+  );
+}
+```
+
+All components access this shared state using:
+
+```tsx
+const { appContext, setAppContext } = useContext(LoadedCard);
+```
+
+## Core Components
+
+<CardGroup cols={2}>
+  <Card title="CardCrafter" icon="pen-to-square" href="/components/card-crafter">
+    Create and edit playlists with drag-and-drop song management
+  </Card>
+  <Card title="CardPreview" icon="eye" href="/components/card-preview">
+    Visual card display with flip animation and song list
+  </Card>
+  <Card title="Player" icon="play" href="/components/player">
+    YouTube playback controls with visual audio bars
+  </Card>
+  <Card title="SlipPopUp" icon="bookmark" href="/components/slip-popup">
+    Manage song collections with fuzzy search
+  </Card>
+  <Card title="ColorChangeOption" icon="palette" href="/components/color-change-option">
+    Card property controls for background and hero display
+  </Card>
+  <Card title="FileDropPlate" icon="file-arrow-up" href="/components/file-drop-plate">
+    Drag-and-drop file upload for playlist cards
+  </Card>
+  <Card title="Slider" icon="sliders" href="/components/slider">
+    Custom range slider for playback position
+  </Card>
+</CardGroup>
+
+## Service Layer
+
+The `serviceProvider.ts` module provides utility functions used across components:
+
+- **YouTube Control**: `ytSetup()`, `playFn()`, `pauseFn()`, `seekFn()`
+- **Data Fetching**: `fetchYouTubeTitle()` - retrieves video titles from YouTube
+- **Formatting**: `formatTime()`, `formatText()` - display helpers
+- **File Operations**: `download()` - export playlist cards as `.card` files
+
+## Key Design Patterns
+
+### 1. Context-Based State
+All components read from and update a single source of truth through the `LoadedCard` context.
+
+### 2. Controlled Components
+Form inputs and controls are fully controlled through state, ensuring predictable behavior.
+
+### 3. YouTube iframe API
+The app uses `youtube-iframe-ctrl` library to manage an invisible YouTube player, separating playback logic from UI.
+
+### 4. Local Storage
+`SlipPopUp` persists user-created playlists to `localStorage` for cross-session availability.
+
+### 5. Animation
+Framer Motion is used throughout for smooth transitions and micro-interactions.
+
+## Data Flow Example
+
+When a user plays a song:
+
+1. User clicks play button in `Player` component
+2. `playFn()` triggers YouTube iframe API
+3. YouTube player emits `ytstatechange` event
+4. Event listener updates `appContext.playerState` to `"PLAYING"`
+5. All components re-render with new state
+6. Visual audio bars animate in `Player`
+7. Current track highlights in `CardPreview`
+
+This unidirectional data flow ensures consistent state across the application.

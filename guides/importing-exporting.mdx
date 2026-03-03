@@ -1,0 +1,154 @@
+---
+title: Importing and exporting cards
+description: Learn how to save your playlists as .card files and import them back into Ode
+---
+
+Ode uses a custom `.card` file format to save and share your curated playlists. This format preserves all your customization settings, including songs, styling, and metadata.
+
+## Exporting cards
+
+When you're finished creating a card in the Card Crafter, you can download it as a `.card` file.
+
+### The download process
+
+1. Click the **Download** button in the Card Crafter
+2. The file is automatically saved as `[your-card-title].card`
+3. The download uses the browser's native download mechanism
+
+### The .card file format
+
+A `.card` file is a JSON file with the following structure:
+
+```json
+{
+  "loadedCard": {
+    "properties": {
+      "title": "My Awesome Playlist",
+      "color": "#11262A",
+      "blur": "1",
+      "bgType": "color",
+      "cdHero": "char",
+      "char": "📻"
+    },
+    "title": "My Awesome Playlist",
+    "songs": [
+      {
+        "title": "Song Name",
+        "id": "dQw4w9WgXcQ"
+      },
+      {
+        "title": "Another Song",
+        "id": "9bZkp7q19f0"
+      }
+    ]
+  }
+}
+```
+
+### Property definitions
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `title` | string | The display name of your card |
+| `color` | string | Hex color code for solid backgrounds (e.g., `#11262A`) |
+| `blur` | string | Song index (1-based) to use for blur background |
+| `bgType` | string | Background type: `"color"` for solid color or `"blur"` for blurred thumbnail |
+| `cdHero` | string | Hero display mode: `"char"` for emoji or `"title"` for text |
+| `char` | string | Emoji or character to display when `cdHero` is `"char"` |
+| `songs` | array | List of song objects with `title` and YouTube video `id` |
+
+### Download implementation
+
+The download function (from `/workspace/source/react/src/services/serviceProvider.ts:6-17`) creates a temporary anchor element, sets the data as a UTF-8 encoded text file, and triggers a download:
+
+```javascript
+function download(filename: string, text: string) {
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  element.setAttribute('download', filename);
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+```
+
+## Importing cards
+
+You can import previously saved `.card` files to reload your playlists with all customizations intact.
+
+### Import methods
+
+**Method 1: Click to import**
+
+1. Click the **Edit** button in the bottom-left corner
+2. Select your `.card` file from the file picker
+3. The Card Crafter opens with your loaded card
+
+**Method 2: Drag and drop**
+
+1. Drag a `.card` file from your file system
+2. Drop it anywhere on the Ode window
+3. The Card Crafter opens with your loaded card
+
+### How import works
+
+Ode uses `react-dropzone` to handle file drops and uploads. The import process:
+
+1. Accepts the dropped or selected file
+2. Reads the file contents as text using the FileReader API
+3. Parses the JSON structure
+4. Validates the format
+5. Opens the Card Crafter with the loaded data
+
+From `/workspace/source/react/src/App.tsx:61-84`:
+
+```javascript
+const onDrop = useCallback(async (receivedCard: File[]) => {
+  if (receivedCard.length > 1) return;
+  const file = receivedCard[0];
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onabort = () => reject(new Error("File reading was aborted"));
+      reader.onerror = () => reject(new Error("File reading failed"));
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsText(file);
+    });
+  };
+
+  try {
+    const text = await readFileAsText(file);
+    const parsedText: { loadedCard: cardContextType } = JSON.parse(text);
+    console.log(parsedText.loadedCard);
+    setInitVal(parsedText.loadedCard);
+    setShowCrafter(true);
+  } catch (err) {
+    window.alert("Please upload a valid card file.");
+    console.error("Error reading file:", err);
+  }
+}, []);
+```
+
+<Warning>
+The `.card` file must contain valid JSON. If the file is corrupted or contains invalid JSON, Ode will display an error alert: "Please upload a valid card file."
+</Warning>
+
+### Error handling
+
+Ode validates imported files and handles errors gracefully:
+
+- **Invalid JSON**: Shows an alert if the file cannot be parsed
+- **Multiple files**: Only processes the first file if multiple files are dropped
+- **Read errors**: Catches FileReader errors and logs them to the console
+
+## Sharing cards
+
+Since `.card` files are plain JSON, you can:
+
+- Share them with friends via email, messaging apps, or cloud storage
+- Edit them manually in a text editor if needed
+- Version control them with Git
+- Back them up alongside your other important files
+
+Just ensure the JSON structure remains valid when making manual edits.

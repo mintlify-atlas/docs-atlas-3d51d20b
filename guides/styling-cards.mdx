@@ -1,0 +1,305 @@
+---
+title: Styling cards
+description: Customize the visual appearance of your playlist cards with colors, backgrounds, and hero displays
+---
+
+Ode gives you complete control over your card's visual design. You can customize the background, hero display, and overall aesthetic to match your playlist's vibe.
+
+## Card customization options
+
+All styling options are available in the Card Crafter interface through the `ColorChangeOption` component. You'll find two main control pills at the top of the card preview:
+
+1. **Background control** (left pill): Choose between solid colors or blurred YouTube thumbnails
+2. **Hero control** (right pill): Display an emoji/character or the card title
+
+## Background types
+
+You can choose between two distinct background styles for your cards.
+
+### Solid color backgrounds
+
+**How to use:**
+
+1. Click the **Palette** icon in the left control pill
+2. Click the color swatch to open the color picker
+3. Select your desired color
+4. The card background updates in real-time
+
+**Properties:**
+- `bgType`: Set to `"color"`
+- `color`: Hex color code (e.g., `"#11262A"`)
+
+**Example configuration:**
+
+```json
+"properties": {
+  "bgType": "color",
+  "color": "#FF6B6B"
+}
+```
+
+Solid colors are perfect for:
+- Minimalist designs
+- Brand-consistent playlists
+- Cards where text readability is paramount
+
+### Blur backgrounds
+
+Blur backgrounds use YouTube video thumbnails from your playlist, creating a dynamic, album-art-style effect.
+
+**How to use:**
+
+1. Add at least one song to your playlist
+2. Click the **Droplet** icon in the left control pill
+3. Use the up/down arrows to select which song's thumbnail to use
+4. The number indicates the song index (1 for first song, 2 for second, etc.)
+
+**Properties:**
+- `bgType`: Set to `"blur"`
+- `blur`: String representing the song index (1-based, e.g., `"1"`, `"2"`, `"3"`)
+
+**Example configuration:**
+
+```json
+"properties": {
+  "bgType": "blur",
+  "blur": "1"
+}
+```
+
+**How blur backgrounds work:**
+
+From `/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:505-527`:
+
+```jsx
+{crafterContext.inputCard.properties.bgType === "blur" && (
+  <>
+    {crafterContext.inputCard.songs[
+      crafterContext.inputCard.properties.blur - 1
+    ] ? (
+      <img
+        src={`https://img.youtube.com/vi/${
+          crafterContext.inputCard.songs[
+            crafterContext.inputCard.properties.blur - 1
+          ].id
+        }/0.jpg`}
+        alt="Song Thumbnail"
+        className="w-full h-full object-cover blur-[1em] block brightness-50"
+      />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-white">
+        <p className="text-sm opacity-60">
+          No background available
+        </p>
+      </div>
+    )}
+  </>
+)}
+```
+
+The thumbnail is:
+- Fetched from YouTube's image servers using the video ID
+- Applied with a 1em blur effect
+- Darkened to 50% brightness for better text contrast
+
+<Note>
+If you select a blur index that exceeds your song count, the background will fall back to a "No background available" message. The blur control automatically limits the maximum value to your current song count.
+</Note>
+
+Blur backgrounds are ideal for:
+- Visually rich, eye-catching cards
+- Music-focused playlists where album art matters
+- Creating cohesive themes based on your song selection
+
+## Hero display modes
+
+The hero is the prominent visual element displayed on your card's front face.
+
+### Character/emoji mode
+
+**How to use:**
+
+1. Click the **Laugh** icon in the right control pill
+2. Type your desired emoji or character (up to 6 characters)
+3. The hero updates instantly
+
+**Properties:**
+- `cdHero`: Set to `"char"`
+- `char`: String containing your emoji/character (e.g., `"📻"`, `"🎵"`, `"♪"`)
+
+**Example configuration:**
+
+```json
+"properties": {
+  "cdHero": "char",
+  "char": "🎸"
+}
+```
+
+The character is displayed:
+- At 2.3em font size
+- Centered on the card
+- Using the "Pixelify Sans" font family
+- In white color for maximum contrast
+
+**Character display implementation:**
+
+From `/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:528-536`:
+
+```jsx
+{crafterContext.inputCard.properties.cdHero === "char" ? (
+  <p
+    className="flex w-fit h-fit justify-start items-end text-[2.3em] absolute p-2 text-white"
+    style={{
+      fontFamily: "Pixelify Sans",
+    }}
+  >
+    {crafterContext.inputCard.properties.char}
+  </p>
+) : ...
+}
+```
+
+### Title mode
+
+**How to use:**
+
+1. Click the **Type** icon in the right control pill
+2. The card automatically displays your card title as the hero
+
+**Properties:**
+- `cdHero`: Set to `"title"`
+
+**Example configuration:**
+
+```json
+"properties": {
+  "cdHero": "title",
+  "title": "Summer Vibes 2024"
+}
+```
+
+The title is displayed:
+- At 1.2em font size
+- Positioned at the bottom-left of the card
+- Truncated with ellipsis if too long
+- Using the "Pixelify Sans" font family
+- In white color
+
+**Title display implementation:**
+
+From `/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:537-546`:
+
+```jsx
+<p
+  className="whitespace-nowrap overflow-hidden overflow-ellipsis flex w-full h-fit justify-start items-end text-[1.2em] absolute bottom-0 left-0 p-2 text-white"
+  style={{
+    fontFamily: "Pixelify Sans",
+  }}
+>
+  {crafterContext.inputCard.properties.title}
+</p>
+```
+
+## Control interface details
+
+The `ColorChangeOption` component provides a sleek, animated interface for styling controls.
+
+### Visual design
+
+- **Pill-shaped containers**: Rounded, black backgrounds with subtle borders
+- **Animated transitions**: Smooth 0.3s fade and slide animations when switching modes
+- **Interactive icons**: Scale effects on hover and click for tactile feedback
+- **Live preview**: All changes reflect immediately on the card preview
+
+### Color picker specifics
+
+When in color mode, you get:
+
+- Native browser color picker
+- Color swatch preview showing current selection
+- Instant updates to the card background
+- Rounded, bordered input for a polished look
+
+From `/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx:36-58`:
+
+```jsx
+<input
+  value={crafterContext.inputCard.properties.color}
+  onChange={(e) => {
+    setCrafterContext((prev: any) => {
+      return {
+        ...prev,
+        inputCard: {
+          ...prev.inputCard,
+          properties: {
+            ...prev.inputCard.properties,
+            color: e.target.value,
+          },
+        },
+      };
+    });
+  }}
+  type="color"
+  style={{
+    backgroundColor: crafterContext.inputCard.properties.color,
+  }}
+  className="aspect-square w-[1.8em] rounded-[0.7em] border-[0.1em] border-[rgba(255,255,255,0.1)] text-center cursor-pointer"
+/>
+```
+
+### Blur index controls
+
+When in blur mode, you can:
+
+- Click up/down chevrons to increment/decrement the song index
+- View the current index in a read-only input field
+- Auto-clamping prevents selecting invalid indices (minimum 1, maximum = song count)
+
+<Tip>
+The blur index selector won't let you choose a song that doesn't exist. If you have 5 songs, you can only select indices 1-5.
+</Tip>
+
+## Best practices for card styling
+
+### Creating visually appealing cards
+
+1. **Match the vibe**: Use bright colors for upbeat playlists, darker tones for moody ones
+2. **Leverage blur backgrounds**: If your playlist has iconic album art, use blur mode to showcase it
+3. **Choose meaningful emojis**: Pick emojis that represent the playlist theme (🌙 for nighttime, 🏃 for workout, etc.)
+4. **Consider readability**: Darker backgrounds work better with white text overlays
+5. **Test different song thumbnails**: Some thumbnails look better blurred than others
+
+### Recommended combinations
+
+| Playlist Type | Background | Hero | Example |
+|---------------|------------|------|----------|
+| Genre-focused | Solid color | Emoji | Jazz playlist with `#2C3E50` + 🎷 |
+| Album collection | Blur (song 1) | Title | Show the lead album art |
+| Mood-based | Solid color | Emoji | Chill vibes with `#6C5CE7` + 🌊 |
+| Multi-genre mix | Blur (favorite song) | Emoji | Eclectic with blur + 🎵 |
+
+<Tip>
+Experiment freely! The live preview lets you see changes instantly, so try different combinations until you find the perfect look.
+</Tip>
+
+## Technical reference
+
+All styling properties are defined in the `cardContextType` interface (`/workspace/source/react/src/services/types.ts:1-14`):
+
+```typescript
+interface cardContextType {
+  properties: {
+    title: string;
+    color: string;
+    blur: string;
+    bgType: string;
+    cdHero: string;
+    char: string;
+  };
+  title: string;
+  songs: { title: string; id: string }[];
+}
+```
+
+The styling controls are implemented in `/workspace/source/react/src/components/ColorChangeOption/ColorChangeOption.tsx` and rendered in the Card Crafter preview at `/workspace/source/react/src/components/CardPreview/CardCrafter/CardCrafter.tsx:471-602`.

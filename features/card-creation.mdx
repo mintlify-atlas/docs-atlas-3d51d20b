@@ -1,0 +1,205 @@
+---
+title: Card creation
+description: Create and manage playlist cards with the CardCrafter interface
+---
+
+The CardCrafter is your central interface for creating playlist cards in Ode. It provides a comprehensive workflow for adding songs, customizing appearance, and organizing your music collection.
+
+## Creating a new card
+
+The CardCrafter interface is divided into three main sections:
+
+1. **Title section** - Set your playlist card title
+2. **Card preview** - Customize appearance and preview changes in real-time
+3. **Song management** - Add, reorder, and manage songs
+
+<Steps>
+  <Step title="Enter a card title">
+    Start by entering a title for your playlist card. This will be displayed on the card and used as the filename when you download it.
+  </Step>
+  
+  <Step title="Add songs to your card">
+    Paste a YouTube URL into the link input field, then either manually enter a title or fetch it automatically from YouTube.
+  </Step>
+  
+  <Step title="Customize the card appearance">
+    Choose your card's color, background type, and hero display options to match your style.
+  </Step>
+  
+  <Step title="Download your card">
+    Once you've added at least one song and set a title, download your card as a `.card` file to use in Ode.
+  </Step>
+</Steps>
+
+## Adding songs
+
+Ode supports multiple YouTube URL formats for maximum flexibility:
+
+### Supported URL formats
+
+```javascript
+// Standard YouTube watch URL
+https://youtube.com/watch?v=dQw4w9WgXcQ
+
+// Shortened youtu.be URL
+https://youtu.be/dQw4w9WgXcQ
+
+// Embed URL
+https://youtube.com/embed/dQw4w9WgXcQ
+
+// Mobile YouTube URL
+https://m.youtube.com/watch?v=dQw4w9WgXcQ
+
+// YouTube Music URL
+https://music.youtube.com/watch?v=dQw4w9WgXcQ
+```
+
+### URL validation
+
+The CardCrafter validates YouTube URLs using pattern matching to ensure only valid video IDs are accepted. All YouTube video IDs are exactly 11 characters long and contain alphanumeric characters, hyphens, or underscores.
+
+```typescript
+// From CardCrafter.tsx:106-122
+function valid(url: string | null) {
+  if (!url || typeof url !== "string") {
+    return false;
+  }
+
+  url = url.trim();
+
+  const patterns = [
+    /youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
+    /youtu\.be\/[a-zA-Z0-9_-]{11}/,
+    /youtube\.com\/embed\/[a-zA-Z0-9_-]{11}/,
+    /m\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
+    /music\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
+  ];
+
+  return patterns.some((pattern) => pattern.test(url));
+}
+```
+
+### Extracting YouTube video IDs
+
+The CardCrafter extracts the video ID from various URL formats:
+
+```typescript
+// From CardCrafter.tsx:78-104
+const getID = (url: string | null) => {
+  if (typeof url !== "string") {
+    return null;
+  }
+  url = url.trim();
+  
+  // Standard YouTube URL
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Shortened URL
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Embed URL
+  match = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Mobile YouTube URL
+  match = url.match(/m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // YouTube Music URL
+  match = url.match(/music\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/);
+  if (match) {
+    return match[1];
+  }
+  
+  return null;
+};
+```
+
+### Fetching song titles
+
+Instead of manually typing song titles, you can automatically fetch them from YouTube:
+
+1. Paste a YouTube URL into the link field
+2. Click the download arrow button
+3. The song title will be fetched and populated automatically
+
+The title is retrieved using the noembed.com API, which extracts metadata from YouTube videos.
+
+<Note>
+  The CardCrafter automatically prevents duplicate songs from being added. If you add a song with the same video ID, it will update the existing entry instead of creating a duplicate.
+</Note>
+
+## Drag-and-drop reordering
+
+You can reorder songs in your playlist using drag-and-drop functionality powered by `@dnd-kit`. Simply click and drag any song in the list to reposition it.
+
+The implementation uses:
+- `DndContext` with `closestCorners` collision detection
+- `SortableContext` with vertical list sorting strategy
+- Real-time preview updates as you reorder
+
+```typescript
+// From CardCrafter.tsx:242-248
+<DndContext
+  collisionDetection={closestCorners}
+  onDragEnd={handleDragEnd}
+>
+  <SortableContext
+    items={crafterContext.inputCard.songs.map((song) => song.id)}
+    strategy={verticalListSortingStrategy}
+  >
+```
+
+## Adding songs from Slips
+
+You can quickly add multiple songs to your card by importing them from existing Slips (song collections). Click the "Add Songs from Slips" button to browse and select songs from your saved Slips.
+
+## Managing songs
+
+Each song in your card includes controls to:
+
+- **Copy URL** - Copy the YouTube URL to your clipboard
+- **Remove** - Delete the song from the card
+- **Reorder** - Drag to change the song position
+
+## Downloading your card
+
+<Warning>
+  You must provide a title and add at least one song before downloading your card. The download button will show an alert if these requirements aren't met.
+</Warning>
+
+When you click Download, your card is saved as a `.card` file in JSON format:
+
+```json
+{
+  "loadedCard": {
+    "properties": {
+      "title": "Summer Vibes",
+      "color": "#11262A",
+      "blur": "1",
+      "bgType": "color",
+      "cdHero": "char",
+      "char": "📻"
+    },
+    "title": "Summer Vibes",
+    "songs": [
+      {
+        "title": "Example Song",
+        "id": "dQw4w9WgXcQ"
+      }
+    ]
+  }
+}
+```
+
+You can then load this `.card` file in Ode to play your curated playlist.

@@ -1,0 +1,414 @@
+---
+title: 'SlipPopUp'
+description: 'Manage song collections with fuzzy search and localStorage persistence'
+---
+
+## Purpose
+
+`SlipPopUp` provides a playlist collection manager where users can:
+
+- Create named "slips" (mini-playlists)
+- Add/remove current song to slips
+- Search slips with fuzzy matching
+- View slip contents
+- Load slips as playlists
+- Persist slips to localStorage
+
+## Props
+
+<ParamField path="showSlipPopUp" type="boolean" required>
+  Controls popup visibility
+</ParamField>
+
+<ParamField path="setShowSlipPopUp" type="Function" required>
+  Callback to toggle popup visibility
+</ParamField>
+
+## Slip Data Structure
+
+```typescript
+interface Slip {
+  name: string;
+  songs: {
+    title: string;
+    id: string;      // YouTube video ID
+  }[];
+}
+```
+
+Slips are stored as an array:
+
+```tsx
+const [slips, setSlips] = useState<Slip[]>(() => {
+  return JSON.parse(localStorage.getItem("slips") || "[]");
+});
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:33`
+
+## localStorage Persistence
+
+Slips automatically sync to localStorage:
+
+```tsx
+useEffect(() => {
+  localStorage.setItem("slips", JSON.stringify(slips));
+  console.log(JSON.parse(localStorage.getItem("slips") || "[]"));
+}, [slips]);
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:38`
+
+This ensures slips persist across sessions.
+
+## Fuse.js Fuzzy Search
+
+Implements fuzzy search for finding slips:
+
+```tsx
+import Fuse from "fuse.js";
+
+const fuse = new Fuse(slips, {
+  keys: ["name"],      // Search by slip name
+  threshold: 0.3,      // Fuzzy matching threshold
+});
+
+const filteredSlips = searchQuery.trim()
+  ? fuse.search(searchQuery).map((result) => result.item)
+  : slips;
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:104`
+
+<Info>
+  Lower threshold = stricter matching. 0.3 allows for typos and partial matches.
+</Info>
+
+## Creating Slips
+
+### Add Slip Handler
+
+```tsx
+const handleAddSlip = () => {
+  if (slips.some((slip) => slip.name === searchQuery)) {
+    alert("Slip with this name already exists");
+    return;
+  }
+  const newSlip = { name: searchQuery, songs: [] };
+  const updated = [...slips, newSlip];
+  setSlips(updated);
+  setSearchQuery("");
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:61`
+
+### Keyboard Support
+
+Press Enter to create slip:
+
+```tsx
+useEffect(() => {
+  const handleKeyPress = (event: KeyboardEvent) => {
+    if (searchQuery) {
+      if (event.key === "Enter") {
+        handleAddSlip();
+      }
+    }
+  };
+  
+  window.addEventListener("keydown", handleKeyPress);
+  
+  return () => {
+    window.removeEventListener("keydown", handleKeyPress);
+  };
+}, [slips, handleAddSlip, searchQuery]);
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:72`
+
+### Search Input UI
+
+```tsx
+<input
+  className="h-full w-full pl-3 pt-3"
+  placeholder="Search or Add a new slip"
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+/>
+
+{searchQuery && (
+  <motion.button
+    initial={{ opacity: 0, width: 0 }}
+    animate={{ opacity: 1, width: "2.5em" }}
+    exit={{ opacity: 0, width: 0 }}
+    onClick={handleAddSlip}
+  >
+    <Plus size={30} />
+  </motion.button>
+)}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:265`
+
+## Managing Songs
+
+### Add Song to Slip
+
+```tsx
+const addSong = (song: { title: string; id: string }, index: number) => {
+  const newSlips = [...slips];
+  newSlips[index].songs.push(song);
+  setSlips(newSlips);
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:88`
+
+### Remove Song from Slip
+
+```tsx
+const deleteSong = (song: { title: string; id: string }, index: number) => {
+  const newSlips = [...slips];
+  const songsCopy = [...newSlips[index].songs];
+  const song_index = songsCopy.findIndex((s) => s.id === song.id);
+  
+  songsCopy.splice(song_index, 1);
+  newSlips[index].songs = songsCopy;
+  setSlips(newSlips);
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:94`
+
+### CheckMark Component
+
+Toggles song membership in slip:
+
+```tsx
+<CheckMark
+  checked={slip.songs.some(
+    (song) =>
+      song.id === appContext.loadedCard.songs[appContext.currentTrack]?.id
+  )}
+  onCheckFn={() => {
+    const currentSong = appContext.loadedCard.songs[appContext.currentTrack];
+    const isAlreadyInSlip = slip.songs.some(
+      (song) => song.id === currentSong?.id
+    );
+    
+    if (isAlreadyInSlip) {
+      deleteSong(currentSong, index);
+    } else {
+      addSong(currentSong, index);
+    }
+  }}
+/>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:190`
+
+## Slip List Display
+
+```tsx
+{filteredSlips.map((slip, index) => (
+  <motion.div
+    onMouseEnter={() => setHoveringThing(index)}
+    onMouseLeave={() => setHoveringThing(null)}
+    layout
+    className="grid grid-cols-[2em_auto_auto] w-full items-center"
+  >
+    <CheckMark {...} />
+    <div onClick={() => setPreviewPageOpts({ show: true, index })}>
+      <div className="whitespace-nowrap overflow-hidden overflow-ellipsis">
+        {slip.name}
+      </div>
+    </div>
+    <div className="flex justify-between items-center">
+      <p>{slip.songs.length}</p>
+      {hoveringThing === index ? (
+        <Trash2 onClick={() => deleteSlip(index)} />
+      ) : (
+        <ChevronRight />
+      )}
+    </div>
+  </motion.div>
+))}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:169`
+
+### Delete Slip
+
+```tsx
+const deleteSlip = (index: number) => {
+  const updated = [...slips];
+  updated.splice(index, 1);
+  setSlips(updated);
+};
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:55`
+
+## SlipPreview Sub-Component
+
+Displays slip contents in detail view:
+
+```tsx
+const [previewPageOpts, setPreviewPageOpts] = useState<{
+  show: boolean;
+  index: number;
+}>({ show: false, index: 0 });
+
+{previewPageOpts.show ? (
+  <SlipPreview
+    name={slips[previewPageOpts.index].name}
+    songs={slips[previewPageOpts.index].songs}
+    contain={slips[previewPageOpts.index].songs.some(
+      (song) => song.id === appContext.loadedCard.songs[appContext.currentTrack]?.id
+    )}
+    deleteSong={deleteSong}
+    goBackFn={() => setPreviewPageOpts((prev) => ({ ...prev, show: false }))}
+    current_index={previewPageOpts.index}
+  />
+) : (
+  // Slip list view
+)}
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:46`
+
+### SlipPreview Props
+
+<ParamField path="name" type="string" required>
+  Slip name
+</ParamField>
+
+<ParamField path="songs" type="{ title: string; id: string }[]" required>
+  Array of songs in the slip
+</ParamField>
+
+<ParamField path="contain" type="boolean" required>
+  Whether current track is in this slip
+</ParamField>
+
+<ParamField path="deleteSong" type="Function" required>
+  Callback to remove song from slip
+</ParamField>
+
+<ParamField path="goBackFn" type="Function" required>
+  Return to slip list view
+</ParamField>
+
+<ParamField path="current_index" type="number" required>
+  Index of slip in slips array
+</ParamField>
+
+### Load Slip as Playlist
+
+SlipPreview can load slip songs as the main playlist:
+
+```tsx
+<Play
+  onClick={() => {
+    setAppContext((prev) => ({
+      ...prev,
+      currentTrack: 0,
+      loadedCard: {
+        properties: {
+          title: name,
+          color: "#101010",
+          blur: "1",
+          bgType: "color",
+          cdHero: "char",
+          char: "🔖 slip",
+        },
+        songs: [...songs],
+      },
+    }));
+  }}
+/>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPreview/SlipPreview.tsx:67`
+
+## Click Outside Handler
+
+Closes popup when clicking outside:
+
+```tsx
+const popupRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  const handleClickOutside = (e: MouseEvent) => {
+    if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+      setShowSlipPopUp(false);
+    }
+  };
+  
+  if (showSlipPopUp) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+  
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [showSlipPopUp]);
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:17`
+
+## Animation
+
+Entrance animation using Framer Motion:
+
+```tsx
+<motion.div
+  ref={popupRef}
+  initial={{
+    opacity: 0,
+    transform: "translate(-6.25rem,-100%) scale(0)",
+  }}
+  animate={{
+    opacity: 1,
+    transform: "translate(-6.25rem,-105%) scale(1)",
+    transformOrigin: "bottom",
+  }}
+  exit={{ opacity: 0, transform: "translate(-6.25rem,-100%) scale(0)" }}
+  transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
+  className="w-90 h-90 p-3 backdrop-blur-2xl rounded-[1em] absolute z-1000"
+>
+```
+
+Location: `/home/daytona/workspace/source/react/src/components/SlipPopUp/SlipPopUp.tsx:114`
+
+<Note>
+  Slips are ideal for organizing songs by mood, genre, or occasion without creating full playlist cards.
+</Note>
+
+## Integration Example
+
+```tsx
+import SlipPopUp from '@/components/SlipPopUp/SlipPopUp';
+import { AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+
+function PlayerComponent() {
+  const [showSlipPopUp, setShowSlipPopUp] = useState(false);
+  
+  return (
+    <>
+      <button onClick={() => setShowSlipPopUp(true)}>Open Slips</button>
+      
+      <AnimatePresence>
+        {showSlipPopUp && (
+          <SlipPopUp
+            showSlipPopUp={showSlipPopUp}
+            setShowSlipPopUp={setShowSlipPopUp}
+          />
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+```

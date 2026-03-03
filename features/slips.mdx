@@ -1,0 +1,238 @@
+---
+title: Slips
+description: Organize and manage your music collection with Slips
+---
+
+Slips are collections that help you organize songs across multiple playlists. Think of them as tags or categories that you can apply to any song in Ode.
+
+## What are Slips?
+
+Slips provide a flexible way to organize your music library:
+
+- Create unlimited Slips for different moods, genres, or occasions
+- Add the currently playing song to multiple Slips
+- Quickly browse and manage songs within each Slip
+- Import songs from Slips when creating new cards
+
+<Note>
+  Slips are stored in your browser's localStorage, so they persist across sessions on the same device.
+</Note>
+
+## Creating a Slip
+
+To create a new Slip:
+
+<Steps>
+  <Step title="Open the Slip interface">
+    Click the glowing icon in the player display to open the SlipPopUp.
+  </Step>
+  
+  <Step title="Enter a name">
+    Type a unique name for your Slip in the search/add input field.
+  </Step>
+  
+  <Step title="Add the Slip">
+    Press Enter or click the plus button to create the Slip.
+  </Step>
+</Steps>
+
+```typescript
+// From SlipPopUp.tsx:61-70
+const handleAddSlip = () => {
+  if (slips.some((slip) => slip.name === searchQuery)) {
+    alert("Slip with this name already exists");
+    return;
+  }
+  const newSlip = { name: searchQuery, songs: [] };
+  const updated = [...slips, newSlip];
+  setSlips(updated);
+  setSearchQuery("");
+};
+```
+
+<Warning>
+  Slip names must be unique. You'll see an alert if you try to create a Slip with a name that already exists.
+</Warning>
+
+## Adding songs to Slips
+
+You can add the currently playing song to any Slip:
+
+1. Open the SlipPopUp while a song is playing
+2. Click the checkbox next to any Slip name
+3. The song is instantly added to that Slip
+
+The checkbox shows a check mark for Slips that already contain the current song.
+
+```typescript
+// From SlipPopUp.tsx:88-92
+const addSong = (song: { title: string; id: string }, index: number) => {
+  const newSlips = [...slips];
+  newSlips[index].songs.push(song);
+  setSlips(newSlips);
+};
+```
+
+## Removing songs from Slips
+
+To remove a song from a Slip:
+
+- In the main Slip list: Click the checked checkbox to toggle it off
+- In the Slip preview: Delete individual songs from the expanded view
+
+```typescript
+// From SlipPopUp.tsx:94-102
+const deleteSong = (song: { title: string; id: string }, index: number) => {
+  const newSlips = [...slips];
+  const songsCopy = [...newSlips[index].songs];
+  const song_index = songsCopy.findIndex((s) => s.id === song.id);
+
+  songsCopy.splice(song_index, 1);
+  newSlips[index].songs = songsCopy;
+  setSlips(newSlips);
+};
+```
+
+## Searching Slips with fuzzy search
+
+The SlipPopUp includes fuzzy search powered by Fuse.js, making it easy to find Slips even with typos or partial matches:
+
+```typescript
+// From SlipPopUp.tsx:104-111
+const fuse = new Fuse(slips, {
+  keys: ["name"],
+  threshold: 0.3,
+});
+
+const filteredSlips = searchQuery.trim()
+  ? fuse.search(searchQuery).map((result) => result.item)
+  : slips;
+```
+
+The `threshold: 0.3` setting provides balanced fuzzy matching:
+- `0.0` = exact match only
+- `0.3` = allows some flexibility for typos
+- `1.0` = matches anything
+
+### Search examples
+
+| Your Slip name | Search query | Matches? |
+|----------------|--------------|----------|
+| "Workout Mix" | "workout" | Yes |
+| "Workout Mix" | "work" | Yes |
+| "Workout Mix" | "wokrout" | Yes (typo tolerance) |
+| "Chill Vibes" | "chill" | Yes |
+| "Chill Vibes" | "relax" | No |
+
+## Slip preview interface
+
+Click any Slip name to open the detailed preview view:
+
+- See all songs in the Slip
+- Delete individual songs
+- View song count
+- Navigate back to the main Slip list
+
+The preview interface animates smoothly using Framer Motion:
+
+```typescript
+// From SlipPopUp.tsx:136-159
+<AnimatePresence mode="wait">
+  {previewPageOpts.show ? (
+    <motion.div
+      key="preview"
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
+      transition={{ duration: 0.2 }}
+      className="h-full w-full"
+    >
+      <SlipPreview
+        name={slips[previewPageOpts.index].name}
+        songs={slips[previewPageOpts.index].songs}
+        contain={slips[previewPageOpts.index].songs.some(
+          (song) =>
+            song.id ===
+            appContext.loadedCard.songs[appContext.currentTrack]?.id,
+        )}
+        deleteSong={deleteSong}
+        goBackFn={() =>
+          setPreviewPageOpts((prev) => ({ ...prev, show: false }))
+        }
+        current_index={previewPageOpts.index}
+      />
+    </motion.div>
+  ) : (
+    // ... main list view
+  )
+}
+```
+
+## localStorage persistence
+
+All Slips are automatically saved to localStorage, ensuring your collections persist across browser sessions:
+
+```typescript
+// From SlipPopUp.tsx:33-41
+const [slips, setSlips] = useState<
+  { name: string; songs: { title: string; id: string }[] }[]
+>(() => {
+  return JSON.parse(localStorage.getItem("slips") || "[]");
+});
+
+useEffect(() => {
+  localStorage.setItem("slips", JSON.stringify(slips));
+}, [slips]);
+```
+
+### Slip data structure
+
+```json
+[
+  {
+    "name": "Workout",
+    "songs": [
+      {
+        "title": "Eye of the Tiger",
+        "id": "btPJPFnesV4"
+      },
+      {
+        "title": "Till I Collapse",
+        "id": "ytQ5CKE1VhI"
+      }
+    ]
+  },
+  {
+    "name": "Chill",
+    "songs": [
+      {
+        "title": "Weightless",
+        "id": "UfcAVejslrU"
+      }
+    ]
+  }
+]
+```
+
+## Deleting Slips
+
+To delete a Slip:
+
+1. Hover over the Slip in the list
+2. Click the trash icon that appears
+3. The Slip and all its song associations are immediately removed
+
+<Warning>
+  Deleting a Slip is permanent and cannot be undone. The songs themselves remain in your cards, but the Slip collection is lost.
+</Warning>
+
+## Using Slips in CardCrafter
+
+When creating a new card, you can quickly add multiple songs from your Slips:
+
+1. Open CardCrafter
+2. Click "Add Songs from Slips"
+3. Select songs from any of your Slips
+4. The songs are added to your new card
+
+This makes it easy to create new playlist variations from your existing song collections.
