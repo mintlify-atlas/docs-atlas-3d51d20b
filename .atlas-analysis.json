@@ -1,0 +1,89 @@
+{
+  "projectType": "frontend",
+  "projectName": "Ode",
+  "projectDescription": "A creative music playlist manager that turns YouTube playlists into shareable, customizable visual cards",
+  "theme": "almond",
+  "primaryColor": "#FF6B6B",
+  "lightColor": "#FFE66D",
+  "darkColor": "#4ECDC4",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/card-creation",
+              "features/customization",
+              "features/slips",
+              "features/playback"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/keyboard-shortcuts",
+              "guides/importing-exporting",
+              "guides/styling-cards"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Components",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["components/overview"]
+          },
+          {
+            "group": "Core Components",
+            "pages": [
+              "components/card-crafter",
+              "components/card-preview",
+              "components/player",
+              "components/slip-popup"
+            ]
+          },
+          {
+            "group": "UI Components",
+            "pages": [
+              "components/color-change-option",
+              "components/file-drop-plate",
+              "components/slider"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Create visual playlist cards from YouTube links",
+    "Customize card appearance with colors, backgrounds, and emojis",
+    "Organize songs into collections using 'Slips'",
+    "Drag-and-drop song reordering",
+    "Export and import playlist cards",
+    "Integrated YouTube player with keyboard controls",
+    "Animated visual player interface",
+    "Fuzzy search for finding slips"
+  ],
+  "publicApiSurface": [
+    "CardCrafter - Create and edit music cards",
+    "CardPreview - Display card visualizations",
+    "Player - YouTube playback controls",
+    "SlipPopUp - Manage song collections",
+    "ColorChangeOption - Card styling interface",
+    "FileDropPlate - Import card files",
+    "ContextProvider - Global state management",
+    "playFn() - Start playback",
+    "pauseFn() - Pause playback",
+    "seekFn(seconds) - Seek to timestamp",
+    "fetchYouTubeTitle(link) - Get video title",
+    "download(filename, text) - Export card file"
+  ]
+}
